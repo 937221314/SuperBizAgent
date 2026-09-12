@@ -49,6 +49,7 @@ Thumbs.db
 # 本地配置文件（含密码等敏感信息），示例见 manifest/config/config.example.yaml
 manifest/config/config.yaml
 
+
 # Logs
 *.log
 logs/
