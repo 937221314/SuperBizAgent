@@ -113,7 +113,8 @@ func (c *SimpleMemory) GetMessages() []*schema.Message {
 // 规则：
 //   - 保留首条 system 消息（若存在），避免丢失系统提示；
 //   - 其余消息保留最近 maxWindowSize 条，并确保以 user 消息开头，
-//     避免裁剪后出现孤立的 assistant/tool 消息，破坏对话配对关系。
+//     会连续剥离开头的非 user 消息（含 nil），避免裁剪后出现孤立的
+//     assistant/tool 消息，破坏对话配对关系。
 func trimMessages(msgs []*schema.Message, maxWindowSize int) []*schema.Message {
 	if maxWindowSize <= 0 {
 		return nil
@@ -126,23 +127,26 @@ func trimMessages(msgs []*schema.Message, maxWindowSize int) []*schema.Message {
 	if msgs[0] != nil && msgs[0].Role == schema.System {
 		head = 1
 	}
-
 	body := msgs[head:]
 	// system 消息同样占用窗口配额。
-	bodyBudget := maxWindowSize - head
-	if bodyBudget < 0 {
-		bodyBudget = 0
-	}
+	bodyBudget := max(maxWindowSize-head, 0)
+
 	if len(body) > bodyBudget {
 		body = body[len(body)-bodyBudget:]
 	}
 	// 裁剪后必须以 user 消息开头，避免丢失配对的上下文。
-	for len(body) > 0 && body[0] != nil && body[0].Role != schema.User {
+	//
+	// 注意：这是 while 语义的循环（等价于 for 条件 {}），会反复剥离
+	// 「连续的」非 user 消息（含 nil），直到遇到 user 消息或消息耗尽才
+	// 停止，而不是切一次就退出。这是必要的：tool-call 链会产生连续多条
+	// assistant/tool 消息，只剥一条仍会留下孤立的 tool 消息。
+	for len(body) > 0 && (body[0] == nil || body[0].Role != schema.User) {
 		body = body[1:]
 	}
 
 	result := make([]*schema.Message, 0, head+len(body))
 	result = append(result, msgs[:head]...)
 	result = append(result, body...)
+
 	return result
 }

@@ -11,10 +11,15 @@ import (
 func userMsg(content string) *schema.Message { return schema.UserMessage(content) }
 func sysMsg(content string) *schema.Message  { return schema.SystemMessage(content) }
 func asstMsg(content string) *schema.Message { return schema.AssistantMessage(content, nil) }
+func toolMsg(content string) *schema.Message { return schema.ToolMessage(content, "call-1") }
 
 func contents(msgs []*schema.Message) []string {
 	out := make([]string, 0, len(msgs))
 	for _, m := range msgs {
+		if m == nil {
+			out = append(out, "<nil>")
+			continue
+		}
 		out = append(out, string(m.Role)+":"+m.Content)
 	}
 	return out
@@ -67,6 +72,33 @@ func TestTrimMessagesStartsWithUser(t *testing.T) {
 	}
 	got := trimMessages(msgs, 3)
 	assertContents(t, got, []string{"user:2", "assistant:3"})
+}
+
+func TestTrimMessagesStripsConsecutiveNonUser(t *testing.T) {
+	// 开头的连续 assistant/tool 消息应被“全部”剥离，而非只剥一条
+	msgs := []*schema.Message{
+		asstMsg("a1"), asstMsg("a2"), toolMsg("t1"), userMsg("u1"), asstMsg("a3"),
+	}
+	got := trimMessages(msgs, 4)
+	assertContents(t, got, []string{"user:u1", "assistant:a3"})
+}
+
+func TestTrimMessagesStripsLeadingNil(t *testing.T) {
+	// 开头的 nil 消息同样应被剥离，结果首条必须是真实 user 消息
+	msgs := []*schema.Message{
+		nil, nil, userMsg("u1"), asstMsg("a2"), userMsg("u2"),
+	}
+	got := trimMessages(msgs, 4)
+	assertContents(t, got, []string{"user:u1", "assistant:a2", "user:u2"})
+}
+
+func TestTrimMessagesAllNonUser(t *testing.T) {
+	// 全部为非 user 消息时应被剥空，仅保留 system
+	msgs := []*schema.Message{
+		sysMsg("sys"), asstMsg("a1"), toolMsg("t1"), asstMsg("a2"),
+	}
+	got := trimMessages(msgs, 3)
+	assertContents(t, got, []string{"system:sys"})
 }
 
 func TestTrimMessagesZeroWindow(t *testing.T) {
