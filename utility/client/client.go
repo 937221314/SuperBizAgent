@@ -53,7 +53,8 @@ func NewMilvusClient(ctx context.Context) (cli.Client, error) {
 
 	// 2. 检查业务数据库是否存在，不存在则创建
 	if err := ensureDatabase(ctx, defaultClient, milvusCfg.DBName); err != nil {
-		defaultClient.Close()
+		// 关闭失败不应覆盖主错误，显式忽略
+		_ = defaultClient.Close()
 		return nil, err
 	}
 
@@ -75,7 +76,8 @@ func NewMilvusClient(ctx context.Context) (cli.Client, error) {
 
 	// 4. 检查业务集合是否存在，不存在则创建
 	if err := ensureCollection(ctx, bizClient, milvusCfg.CollectionName, milvusCfg.VectorDim); err != nil {
-		bizClient.Close()
+		// 关闭失败不应覆盖主错误，显式忽略
+		_ = bizClient.Close()
 		return nil, err
 	}
 
