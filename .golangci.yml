@@ -1,0 +1,34 @@
+# golangci-lint 配置（v2 格式）
+# 运行：golangci-lint run ./...     或：make lint
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: standard
+  enable:
+    - revive        # 风格与可读性
+    - misspell      # 拼写检查
+  settings:
+    revive:
+      rules:
+        - name: exported
+        - name: indent-error-flow   # 去掉多余的 else
+        - name: var-naming
+        - name: error-return
+        - name: error-strings
+    misspell:
+      locale: US
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  exclude-rules:
+    # 测试文件放宽风格要求
+    - path: _test\.go
+      linters:
+        - revive
