@@ -31,7 +31,8 @@ go build -o SuperBizAgent .
 SuperBizAgent/
 ├── api/                # API 接口定义
 │   └── chat/           # 聊天相关接口
-├── docs/               # 项目文档
+├── dev-docs/           # 开发文档（本地维护，不纳入版本控制）
+├── docs/               # 知识库文档目录（运行期数据，不纳入版本控制）
 ├── hack/               # 构建、脚本等工具
 ├── internal/           # 内部实现（不对外暴露）
 │   └── logic/          # 业务逻辑
@@ -51,6 +52,7 @@ SuperBizAgent/
 - 本项目**优先使用中文交流**，详见 [AGENTS.md](./AGENTS.md)。
 - 提交前确保 `go build ./...` 构建通过。
 - 提交信息使用语义化前缀（`feat:`、`fix:`、`chore:`、`docs:` 等）。
+- `dev-docs/` 存放开发文档，`docs/` 被程序用作知识库文档目录，两者均不纳入版本控制。
 
 ## 许可证
 

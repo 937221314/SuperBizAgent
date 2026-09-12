@@ -15,7 +15,10 @@ const (
 	milvusVectorFieldName   = "vector"   // 向量字段
 	milvusContentFieldName  = "content"  // 文本分片内容
 	milvusMetadataFieldName = "metadata" // 分片元数据（来源文件、页码等）
+)
 
+// 以下集合与索引参数尚未外置到配置，详见 dev-docs/todo.md
+const (
 	// varchar 字段最大长度
 	milvusContentMaxLen = 8192
 	// 集合分片数
@@ -25,14 +28,8 @@ const (
 	milvusHNSWEfConstruction = 200
 )
 
-// NewMilvusClient 创建 Milvus 客户端。
-//
-// 初始化流程：
-//  1. 连接默认数据库，检查业务数据库是否存在，不存在则创建；
-//  2. 连接业务数据库；
-//  3. 检查业务集合是否存在，不存在则创建并建立向量索引、加载到内存。
-//
-// 连接参数从 manifest/config/config.yaml 读取（支持环境变量覆盖），不再硬编码。
+// NewMilvusClient 创建 Milvus 客户端，并确保业务数据库与集合已就绪。
+// 连接参数从 manifest/config/config.yaml 读取（支持环境变量覆盖），初始化流程详见 dev-docs/milvus.md。
 func NewMilvusClient(ctx context.Context) (cli.Client, error) {
 	cfg, err := config.Get()
 	if err != nil {
@@ -53,17 +50,16 @@ func NewMilvusClient(ctx context.Context) (cli.Client, error) {
 
 	// 2. 检查业务数据库是否存在，不存在则创建
 	if err := ensureDatabase(ctx, defaultClient, milvusCfg.DBName); err != nil {
-		// 关闭失败不应覆盖主错误，显式忽略
-		_ = defaultClient.Close()
+		_ = defaultClient.Close() // 关闭失败不应覆盖主错误
 		return nil, err
 	}
 
-	// 关闭默认数据库连接，避免连接泄漏
+	// 3. 关闭默认数据库连接，避免连接泄漏
 	if err := defaultClient.Close(); err != nil {
 		return nil, fmt.Errorf("关闭 Milvus 默认数据库连接失败: %w", err)
 	}
 
-	// 3. 创建连接到业务数据库的客户端
+	// 4. 创建连接到业务数据库的客户端
 	bizClient, err := cli.NewClient(ctx, cli.Config{
 		Address:  milvusCfg.Address,
 		DBName:   milvusCfg.DBName,
@@ -74,10 +70,9 @@ func NewMilvusClient(ctx context.Context) (cli.Client, error) {
 		return nil, fmt.Errorf("连接 Milvus 业务数据库 %s 失败: %w", milvusCfg.DBName, err)
 	}
 
-	// 4. 检查业务集合是否存在，不存在则创建
+	// 5. 检查业务集合是否存在，不存在则创建
 	if err := ensureCollection(ctx, bizClient, milvusCfg.CollectionName, milvusCfg.VectorDim); err != nil {
-		// 关闭失败不应覆盖主错误，显式忽略
-		_ = bizClient.Close()
+		_ = bizClient.Close() // 关闭失败不应覆盖主错误
 		return nil, err
 	}
 
@@ -104,6 +99,7 @@ func ensureDatabase(ctx context.Context, c cli.Client, dbName string) error {
 }
 
 // ensureCollection 确保集合存在；不存在则创建集合并建立向量索引、加载到内存。
+// 集合已存在时不校验 schema，详见 dev-docs/todo.md。
 func ensureCollection(ctx context.Context, c cli.Client, collName string, dim int64) error {
 	exists, err := c.HasCollection(ctx, collName)
 	if err != nil {
@@ -131,7 +127,7 @@ func ensureCollection(ctx context.Context, c cli.Client, collName string, dim in
 	return nil
 }
 
-// bizSchema 返回业务集合的结构定义。
+// bizSchema 返回业务集合的结构定义，字段说明见 dev-docs/milvus.md。
 func bizSchema(collName string, dim int64) *entity.Schema {
 	return entity.NewSchema().
 		WithName(collName).

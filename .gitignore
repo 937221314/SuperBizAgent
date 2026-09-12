@@ -49,6 +49,12 @@ Thumbs.db
 # 本地配置文件（含密码等敏感信息），示例见 manifest/config/config.example.yaml
 manifest/config/config.yaml
 
+# 本地开发文档（不纳入版本控制）
+dev-docs/*
+
+# 知识库文档目录，由 utility/common.FileDir 指向，内容为运行期数据
+docs/*
+!docs/.gitkeep
 
 # Logs
 *.log

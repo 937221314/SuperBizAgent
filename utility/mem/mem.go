@@ -1,7 +1,7 @@
 // Package mem 提供基于内存的会话记忆实现。
 //
-// 每个会话维护一份消息切片，并以滑动窗口方式裁剪，避免历史消息无限增长。
-// 所有导出方法均并发安全。
+// 每个会话维护一份消息切片，并以滑动窗口方式裁剪历史。所有导出方法并发安全。
+// 模型与裁剪规则详见 dev-docs/session-memory.md。
 package mem
 
 import (
@@ -14,15 +14,13 @@ import (
 // DefaultMaxWindowSize 是会话默认的最大窗口大小（消息条数）。
 const DefaultMaxWindowSize = 6
 
-// 全局会话表，由 mu 保护，仅可通过包内函数访问。
+// 全局会话表，由 mu 保护。
 var (
 	simpleMemoryMap = make(map[string]*SimpleMemory)
 	mu              sync.RWMutex
 )
 
-// SimpleMemory 表示一个会话的简单记忆，内部为滑动窗口。
-//
-// 字段均为非导出，必须通过方法访问，以保证并发安全。
+// SimpleMemory 表示一个会话的滑动窗口记忆，字段非导出以保证并发安全。
 type SimpleMemory struct {
 	id            string
 	messages      []*schema.Message
@@ -31,8 +29,7 @@ type SimpleMemory struct {
 }
 
 // NewSimpleMemory 创建指定 ID 的会话记忆。
-//
-// maxWindowSize 为窗口能保留的最大消息条数，小于等于 0 时使用 DefaultMaxWindowSize。
+// maxWindowSize 为窗口可保留的最大消息条数，小于等于 0 时使用 DefaultMaxWindowSize。
 func NewSimpleMemory(id string, maxWindowSize int) *SimpleMemory {
 	if maxWindowSize <= 0 {
 		maxWindowSize = DefaultMaxWindowSize
@@ -44,7 +41,7 @@ func NewSimpleMemory(id string, maxWindowSize int) *SimpleMemory {
 	}
 }
 
-// GetSimpleMemory 按 ID 获取会话记忆，不存在时创建，使用默认窗口大小。
+// GetSimpleMemory 按 ID 获取会话记忆，不存在时以默认窗口大小创建。
 func GetSimpleMemory(id string) *SimpleMemory {
 	mu.RLock()
 	m, ok := simpleMemoryMap[id]
@@ -53,7 +50,7 @@ func GetSimpleMemory(id string) *SimpleMemory {
 		return m
 	}
 
-	// 未命中时升级为写锁，并二次确认，避免重复创建。
+	// 未命中时升级为写锁并二次确认，避免并发下重复创建。
 	mu.Lock()
 	defer mu.Unlock()
 	if m, ok = simpleMemoryMap[id]; ok {
@@ -108,13 +105,8 @@ func (c *SimpleMemory) GetMessages() []*schema.Message {
 	return slices.Clone(c.messages)
 }
 
-// trimMessages 按滑动窗口裁剪消息。
-//
-// 规则：
-//   - 保留首条 system 消息（若存在），避免丢失系统提示；
-//   - 其余消息保留最近 maxWindowSize 条，并确保以 user 消息开头，
-//     会连续剥离开头的非 user 消息（含 nil），避免裁剪后出现孤立的
-//     assistant/tool 消息，破坏对话配对关系。
+// trimMessages 按滑动窗口裁剪消息：保留首条 system 消息（占用窗口配额），
+// 其余取最近 maxWindowSize 条，并剥离开头的非 user 消息。规则详见 dev-docs/session-memory.md。
 func trimMessages(msgs []*schema.Message, maxWindowSize int) []*schema.Message {
 	if maxWindowSize <= 0 {
 		return nil
@@ -128,18 +120,13 @@ func trimMessages(msgs []*schema.Message, maxWindowSize int) []*schema.Message {
 		head = 1
 	}
 	body := msgs[head:]
-	// system 消息同样占用窗口配额。
 	bodyBudget := max(maxWindowSize-head, 0)
 
 	if len(body) > bodyBudget {
 		body = body[len(body)-bodyBudget:]
 	}
-	// 裁剪后必须以 user 消息开头，避免丢失配对的上下文。
-	//
-	// 注意：这是 while 语义的循环（等价于 for 条件 {}），会反复剥离
-	// 「连续的」非 user 消息（含 nil），直到遇到 user 消息或消息耗尽才
-	// 停止，而不是切一次就退出。这是必要的：tool-call 链会产生连续多条
-	// assistant/tool 消息，只剥一条仍会留下孤立的 tool 消息。
+	// 循环剥离而非只剥一条：tool-call 链会产生连续多条 assistant/tool 消息，
+	// 只剥一条仍会留下孤立的 tool 消息，破坏对话配对关系。
 	for len(body) > 0 && (body[0] == nil || body[0].Role != schema.User) {
 		body = body[1:]
 	}

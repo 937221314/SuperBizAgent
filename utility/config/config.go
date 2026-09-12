@@ -1,7 +1,7 @@
 // Package config 负责加载并缓存应用配置。
 //
-// 配置来源优先级：环境变量 > 配置文件 > 代码默认值。
-// 默认读取 manifest/config/config.yaml，可通过 CONFIG_PATH 环境变量指定其它路径。
+// 优先级：环境变量 > 配置文件 > 代码默认值。默认读取 manifest/config/config.yaml，
+// 可用 CONFIG_PATH 指定其它路径。配置项与环境变量清单详见 dev-docs/configuration.md。
 package config
 
 import (
@@ -106,7 +106,7 @@ func Load(path string) (*Config, error) {
 	return c, nil
 }
 
-// Get 返回全局配置，仅在首次调用时加载（并发安全）。
+// Get 返回全局配置，仅在首次调用时加载（并发安全，不支持热更新）。
 func Get() (*Config, error) {
 	once.Do(func() {
 		cfg, loadErr = Load("")

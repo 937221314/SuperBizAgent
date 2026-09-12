@@ -6,5 +6,5 @@ const (
 	MilvusCollectionName = "biz"   // Milvus 集合名称
 )
 
-// FileDir 是知识库文档存放目录。
+// FileDir 是知识库文档存放目录，内容属于运行期数据，不纳入版本控制。
 var FileDir = "./docs/"
