@@ -26,9 +26,27 @@ const (
 	EnvMilvusCollectionName = "MILVUS_COLLECTION_NAME"
 )
 
+// 文本模型配置相关的环境变量名。
+const (
+	EnvTextEmbeddingAPIKey  = "TEXT_EMBEDDING_API_KEY"
+	EnvTextEmbeddingBaseURL = "TEXT_EMBEDDING_BASE_URL"
+	EnvTextEmbeddingModel   = "TEXT_EMBEDDING_MODEL"
+)
+
 // Config 应用总配置。
 type Config struct {
-	Milvus MilvusConfig `yaml:"milvus"`
+	Milvus        MilvusConfig        `yaml:"milvus"`
+	TextEmbedding TextEmbeddingConfig `yaml:"text-embedding"`
+}
+
+// TextEmbeddingConfig 文本向量模型配置，对应配置文件中的 text-embedding 段。
+type TextEmbeddingConfig struct {
+	// APIKey 模型服务的 API Key，建议通过环境变量注入
+	APIKey string `yaml:"api_key"`
+	// BaseURL 模型服务地址
+	BaseURL string `yaml:"base_url"`
+	// Model 模型名称
+	Model string `yaml:"model"`
 }
 
 // MilvusConfig Milvus 客户端配置。
@@ -66,6 +84,9 @@ func defaultConfig() *Config {
 			DBName:         common.MilvusDBName,
 			CollectionName: common.MilvusCollectionName,
 			VectorDim:      1024,
+		},
+		TextEmbedding: TextEmbeddingConfig{
+			Model: "qwen3.7-text-embedding",
 		},
 	}
 }
@@ -125,6 +146,10 @@ func applyEnv(c *Config) {
 		EnvMilvusPassword:       &c.Milvus.Password,
 		EnvMilvusDBName:         &c.Milvus.DBName,
 		EnvMilvusCollectionName: &c.Milvus.CollectionName,
+
+		EnvTextEmbeddingAPIKey:  &c.TextEmbedding.APIKey,
+		EnvTextEmbeddingBaseURL: &c.TextEmbedding.BaseURL,
+		EnvTextEmbeddingModel:   &c.TextEmbedding.Model,
 	}
 	for key, target := range overrides {
 		if v := os.Getenv(key); v != "" {
@@ -148,9 +173,13 @@ func fillDefaults(c *Config) {
 	if c.Milvus.VectorDim <= 0 {
 		c.Milvus.VectorDim = def.Milvus.VectorDim
 	}
+	if c.TextEmbedding.Model == "" {
+		c.TextEmbedding.Model = def.TextEmbedding.Model
+	}
 }
 
 // validate 校验必填项。
+// 文本模型配置不在此校验：缺省时仍可启动，由真正使用模型的组件惰性报错。
 func (c *Config) validate() error {
 	if c.Milvus.Address == "" {
 		return fmt.Errorf("配置项 milvus.address 不能为空")

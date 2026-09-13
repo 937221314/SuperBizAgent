@@ -9,7 +9,38 @@
 #
 # 以下环境变量可覆盖对应配置项（优先级：环境变量 > 配置文件 > 代码默认值）：
 #   MILVUS_ADDRESS、MILVUS_USERNAME、MILVUS_PASSWORD、MILVUS_DB_NAME、MILVUS_COLLECTION_NAME
+#   TEXT_EMBEDDING_API_KEY、TEXT_EMBEDDING_BASE_URL、TEXT_EMBEDDING_MODEL
 # 另外可通过 CONFIG_PATH 指定配置文件的绝对路径。
+
+# server
+server:
+  address: ":8080"
+  openapiPath: "/api.json"
+  swaggerPath: "/swagger"
+
+# logger
+logger:
+  level: "all"
+  stdout: true
+
+# dashscope_chat_plus
+dashscope_chat_plus:
+  api_key: "DASHSCOPE_API_KEY"
+  base_url: "https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"
+  model: "qwen3.7-plus"
+
+# dashscope_chat_flash
+dashscope_chat_flash:
+  api_key: "DASHSCOPE_API_KEY"
+  base_url: "https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"
+  model: "qwen3.6-flash"
+
+# embedder
+# 由 utility/config 加载（不再使用 gf 的 g.Cfg）
+text-embedding:
+  api_key: "DASHSCOPE_API_KEY"
+  base_url: "https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"
+  model: "qwen3.7-text-embedding"
 
 # Milvus 向量数据库
 milvus:
