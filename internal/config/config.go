@@ -33,10 +33,16 @@ const (
 	EnvTextEmbeddingModel   = "TEXT_EMBEDDING_MODEL"
 )
 
+// MCP 服务相关的环境变量名。
+const (
+	EnvMcpURL = "MCP_URL"
+)
+
 // Config 应用总配置。
 type Config struct {
 	Milvus        MilvusConfig        `yaml:"milvus"`
 	TextEmbedding TextEmbeddingConfig `yaml:"text-embedding"`
+	McpURL        string              `yaml:"mcp_url"`
 }
 
 // TextEmbeddingConfig 文本向量模型配置，对应配置文件中的 text-embedding 段。
@@ -88,6 +94,7 @@ func defaultConfig() *Config {
 		TextEmbedding: TextEmbeddingConfig{
 			Model: "qwen3.7-text-embedding",
 		},
+		McpURL: "http://localhost:3000/sse",
 	}
 }
 
@@ -150,6 +157,7 @@ func applyEnv(c *Config) {
 		EnvTextEmbeddingAPIKey:  &c.TextEmbedding.APIKey,
 		EnvTextEmbeddingBaseURL: &c.TextEmbedding.BaseURL,
 		EnvTextEmbeddingModel:   &c.TextEmbedding.Model,
+		EnvMcpURL:               &c.McpURL,
 	}
 	for key, target := range overrides {
 		if v := os.Getenv(key); v != "" {
@@ -175,6 +183,9 @@ func fillDefaults(c *Config) {
 	}
 	if c.TextEmbedding.Model == "" {
 		c.TextEmbedding.Model = def.TextEmbedding.Model
+	}
+	if c.McpURL == "" {
+		c.McpURL = def.McpURL
 	}
 }
 

@@ -58,3 +58,6 @@ milvus:
   collection_name: "biz"
   # 向量维度，必须与所用 Embedding 模型的输出维度一致
   vector_dim: 1024
+
+# mcp
+mcp_url: "http://localhost:3000/sse"

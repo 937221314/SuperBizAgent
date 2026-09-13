@@ -8,7 +8,9 @@ require (
 	github.com/cloudwego/eino-ext/components/embedding/openai v0.0.0-20260909094858-6fe16d48b736
 	github.com/cloudwego/eino-ext/components/indexer/milvus2 v0.0.0-20260909094858-6fe16d48b736
 	github.com/cloudwego/eino-ext/components/retriever/milvus2 v0.1.0
+	github.com/cloudwego/eino-ext/components/tool/mcp v0.0.9
 	github.com/gogf/gf/v2 v2.10.3
+	github.com/mark3labs/mcp-go v0.43.0
 	github.com/milvus-io/milvus/client/v2 v2.6.1
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -27,7 +29,6 @@ require (
 	github.com/cilium/ebpf v0.11.0 // indirect
 	github.com/clbanning/mxj/v2 v2.7.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
-	github.com/cloudwego/eino-ext/components/tool/mcp v0.0.9 // indirect
 	github.com/cloudwego/eino-ext/libs/acl/openai v0.1.15 // indirect
 	github.com/cockroachdb/errors v1.9.1 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20211118104740-dabe8e521a4f // indirect
@@ -71,7 +72,6 @@ require (
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
-	github.com/mark3labs/mcp-go v0.43.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
