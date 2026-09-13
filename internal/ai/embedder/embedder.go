@@ -1,6 +1,6 @@
 // Package embedder 提供知识库所需的文本向量模型。
 //
-// 模型参数（api_key/base_url/model）与向量维度均来自 utility/config 加载的 yaml 配置，
+// 模型参数（api_key/base_url/model）与向量维度均来自 internal/config 加载的 yaml 配置，
 // 维度必须与集合向量字段维度一致。详见 dev-docs/milvus.md、dev-docs/configuration.md。
 package embedder
 
@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	"SuperBizAgent/utility/config"
+	"SuperBizAgent/internal/config"
 
 	"github.com/cloudwego/eino-ext/components/embedding/openai"
 	"github.com/cloudwego/eino/components/embedding"

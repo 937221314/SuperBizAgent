@@ -9,7 +9,7 @@ import (
 	"context"
 	"fmt"
 
-	"SuperBizAgent/utility/config"
+	"SuperBizAgent/internal/config"
 
 	"github.com/milvus-io/milvus/client/v2/milvusclient"
 )

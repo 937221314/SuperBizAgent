@@ -9,8 +9,8 @@ import (
 	"fmt"
 
 	"SuperBizAgent/internal/ai/embedder"
+	"SuperBizAgent/internal/config"
 	"SuperBizAgent/utility/client"
-	"SuperBizAgent/utility/config"
 
 	"github.com/cloudwego/eino-ext/components/retriever/milvus2"
 	"github.com/cloudwego/eino-ext/components/retriever/milvus2/search_mode"

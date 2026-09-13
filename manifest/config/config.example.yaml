@@ -36,7 +36,7 @@ dashscope_chat_flash:
   model: "qwen3.6-flash"
 
 # embedder
-# 由 utility/config 加载（不再使用 gf 的 g.Cfg）
+# 由 internal/config 加载（不再使用 gf 的 g.Cfg）
 text-embedding:
   api_key: "DASHSCOPE_API_KEY"
   base_url: "https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"
