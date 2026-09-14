@@ -22,6 +22,16 @@ SuperBizAgent 是一个 Go 项目。
 - 提交信息使用语义化前缀（如 `feat:`、`fix:`、`chore:`、`docs:`）。
 - 构建产物（二进制、测试缓存等）不纳入版本控制，参见 `.gitignore`。
 
+## Git 工作流约定
+
+`main` 是发布分支，**禁止直接 push**；所有变更必须经 Pull Request 合入。
+
+- 日常开发在 `dev` 分支上进行，较大的独立改动从 `dev` 切出 `feat/xxx` 分支。
+- 合入 `main` 一律通过 PR：`gh pr create --base main --head <分支>`，
+  再由 PR 合并；不要用 `git push origin main` 代替合并。
+- 提交 PR 前确认 `go build ./...` 与 `make lint` 通过。
+- `main` 已开启分支保护，直推会被远端拒绝。
+
 ## 注释约定
 
 源码注释保持简洁：说明性的背景、设计推导与后续计划统一写到 `dev-docs/`，
