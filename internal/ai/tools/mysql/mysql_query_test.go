@@ -74,21 +74,28 @@ func TestMysqlQueryScan(t *testing.T) {
 		t.Fatalf("执行工具失败: %v", err)
 	}
 
-	var rows []map[string]any
-	if err := json.Unmarshal([]byte(out), &rows); err != nil {
+	var got queryOutput
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
 		t.Fatalf("输出不是合法 JSON: %v，原文 %s", err, out)
 	}
-	if len(rows) != 2 {
-		t.Fatalf("期望 2 行，实际 %d 行：%s", len(rows), out)
+	if len(got.Rows) != 2 {
+		t.Fatalf("期望 2 行，实际 %d 行：%s", len(got.Rows), out)
 	}
-	if rows[0]["name"] != "alice" {
-		t.Errorf("第 1 行 name 不符: %#v", rows[0]["name"])
+	if got.RowCount != 2 || got.Truncated {
+		t.Errorf("row_count/truncated 不符: %+v", got)
 	}
-	if rows[0]["payload"] != "blob-1" {
-		t.Errorf("[]byte 未转成 string，实际 %#v", rows[0]["payload"])
+	if got.Rows[0]["name"] != "alice" {
+		t.Errorf("第 1 行 name 不符: %#v", got.Rows[0]["name"])
 	}
-	if rows[1]["name"] != nil {
-		t.Errorf("NULL 应为 nil，实际 %#v", rows[1]["name"])
+	if got.Rows[0]["payload"] != "blob-1" {
+		t.Errorf("[]byte 未转成 string，实际 %#v", got.Rows[0]["payload"])
+	}
+	if got.Rows[1]["name"] != nil {
+		t.Errorf("NULL 应为 nil，实际 %#v", got.Rows[1]["name"])
+	}
+
+	if !fx.usedReadOnlyTx() {
+		t.Errorf("查询应在只读事务中执行")
 	}
 
 	sent := fx.queriedSQL()
@@ -97,7 +104,7 @@ func TestMysqlQueryScan(t *testing.T) {
 	}
 }
 
-// TestMysqlQueryEmptyResult 校验空结果集返回 []，而不是 null。
+// TestMysqlQueryEmptyResult 校验空结果集返回空数组而不是 null。
 func TestMysqlQueryEmptyResult(t *testing.T) {
 	fx := &fakeFixture{columns: []string{"id"}}
 
@@ -110,8 +117,79 @@ func TestMysqlQueryEmptyResult(t *testing.T) {
 	if err != nil {
 		t.Fatalf("执行工具失败: %v", err)
 	}
-	if strings.TrimSpace(out) != "[]" {
-		t.Errorf("空结果集应返回 []，实际 %s", out)
+
+	var got queryOutput
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("输出不是合法 JSON: %v，原文 %s", err, out)
+	}
+	if got.Rows == nil || len(got.Rows) != 0 {
+		t.Errorf("空结果集的 rows 应为 []，实际 %s", out)
+	}
+	if got.RowCount != 0 || got.Truncated {
+		t.Errorf("row_count/truncated 不符: %+v", got)
+	}
+}
+
+// TestMysqlQueryTruncatesByRows 校验结果超过行数上限时截断并打标。
+func TestMysqlQueryTruncatesByRows(t *testing.T) {
+	fx := &fakeFixture{columns: []string{"id"}}
+	for i := 0; i < maxResultRows+10; i++ {
+		fx.rows = append(fx.rows, []driver.Value{int64(i)})
+	}
+
+	tl, err := newMysqlQueryTool(newFakeOpen(t, fakeDSN, fx))
+	if err != nil {
+		t.Fatalf("创建工具失败: %v", err)
+	}
+
+	out, err := tl.InvokableRun(context.Background(), `{"dsn":"`+fakeDSN+`","sql":"SELECT id FROM big"}`)
+	if err != nil {
+		t.Fatalf("执行工具失败: %v", err)
+	}
+
+	var got queryOutput
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("输出不是合法 JSON: %v，原文 %s", err, out)
+	}
+	if len(got.Rows) != maxResultRows || got.RowCount != maxResultRows {
+		t.Errorf("应截断到 %d 行，实际 %d 行", maxResultRows, len(got.Rows))
+	}
+	if !got.Truncated {
+		t.Errorf("truncated 应为 true: %s", out)
+	}
+}
+
+// TestMysqlQueryTruncatesByBytes 校验单行很大时按字节上限截断。
+func TestMysqlQueryTruncatesByBytes(t *testing.T) {
+	big := strings.Repeat("x", maxResultBytes/2)
+	fx := &fakeFixture{
+		columns: []string{"id", "payload"},
+		rows: [][]driver.Value{
+			{int64(1), big},
+			{int64(2), big},
+			{int64(3), big},
+		},
+	}
+
+	tl, err := newMysqlQueryTool(newFakeOpen(t, fakeDSN, fx))
+	if err != nil {
+		t.Fatalf("创建工具失败: %v", err)
+	}
+
+	out, err := tl.InvokableRun(context.Background(), `{"dsn":"`+fakeDSN+`","sql":"SELECT id, payload FROM big"}`)
+	if err != nil {
+		t.Fatalf("执行工具失败: %v", err)
+	}
+
+	var got queryOutput
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("输出不是合法 JSON: %v，原文 %s", err, out)
+	}
+	if len(got.Rows) != 1 {
+		t.Errorf("应因字节上限只保留 1 行，实际 %d 行", len(got.Rows))
+	}
+	if !got.Truncated {
+		t.Errorf("truncated 应为 true")
 	}
 }
 

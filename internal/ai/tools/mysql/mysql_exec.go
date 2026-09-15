@@ -60,7 +60,7 @@ func NewMysqlExecTool(ctx context.Context) (tool.InvokableTool, error) {
 	if err != nil {
 		return nil, fmt.Errorf("加载配置失败: %w", err)
 	}
-	return newMysqlExecTool(openMySQL, parseDangerousMode(cfg.Mysql.DangerousStatementMode))
+	return newMysqlExecTool(defaultPool.acquire, parseDangerousMode(cfg.Mysql.DangerousStatementMode))
 }
 
 // parseDangerousMode 解析配置值；无法识别时退回 deny，宁可拒绝也不误挂起。
@@ -97,13 +97,12 @@ func newMysqlExecTool(open openMySQLFunc, mode DangerousStatementMode) (tool.Inv
 	return t, nil
 }
 
-// runStatement 建立连接并执行语句。
+// runStatement 取得连接池并执行语句。
 func runStatement(ctx context.Context, open openMySQLFunc, input *ExecInput) (string, error) {
-	db, release, err := open(input.DSN)
+	db, err := open(input.DSN)
 	if err != nil {
 		return "", err
 	}
-	defer release()
 
 	return execSQL(ctx, db, input.SQL)
 }
