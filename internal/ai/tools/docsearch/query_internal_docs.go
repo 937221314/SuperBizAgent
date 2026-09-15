@@ -1,8 +1,8 @@
-// Package tools 提供 Agent 可挂载到 ToolsNode 的工具集合。
+// Package docsearch 提供内部文档检索工具 query_internal_docs。
 //
-// 工具统一产出 eino 的 tool.InvokableTool；检索类工具复用 internal/ai/retriever
-// 的 Milvus 检索器。详见 dev-docs/milvus.md。
-package tools
+// 工具产出 eino 的 tool.InvokableTool；检索复用 internal/ai/retriever 的 Milvus 检索器，
+// 检索器惰性构建并全局复用。详见 dev-docs/milvus.md。
+package docsearch
 
 import (
 	"context"
