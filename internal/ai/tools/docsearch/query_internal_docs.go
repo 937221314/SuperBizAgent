@@ -1,8 +1,8 @@
-// Package tools 提供 Agent 可挂载到 ToolsNode 的工具集合。
+// Package docsearch 提供内部文档检索工具 query_internal_docs。
 //
-// 工具统一产出 eino 的 tool.InvokableTool；检索类工具复用 internal/ai/retriever
-// 的 Milvus 检索器。详见 dev-docs/milvus.md。
-package tools
+// 工具产出 eino 的 tool.InvokableTool；检索复用 internal/ai/retriever 的 Milvus 检索器，
+// 检索器惰性构建并全局复用。详见 dev-docs/milvus.md。
+package docsearch
 
 import (
 	"context"
@@ -18,10 +18,9 @@ import (
 )
 
 // toolDescQueryInternalDocs 是工具描述，模型依赖它判断是否调用，需写清适用场景。
-const toolDescQueryInternalDocs = "Search the internal documentation and knowledge base for relevant " +
-	"information and processing steps (RAG retrieval over the knowledge base). Use it when you need to " +
-	"understand internal procedures, best practices, or step-by-step guides stored in the company's " +
-	"documentation. An empty result means nothing relevant was found."
+const toolDescQueryInternalDocs = "搜索内部文档和知识库，获取相关信息和处理步骤（基于知识库的 RAG 检索）。" +
+	"当你需要了解公司文档中存储的内部流程、最佳实践或分步指南时，使用它。" +
+	"结果为空表示未找到相关内容。"
 
 var (
 	// internalDocsMu 保护 internalDocs 的惰性构建，避免并发首次调用重复建连。
