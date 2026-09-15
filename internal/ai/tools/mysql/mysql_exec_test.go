@@ -14,7 +14,7 @@ import (
 func TestMysqlExecRowsAffected(t *testing.T) {
 	fx := &fakeFixture{rowsAffected: 3}
 
-	tl, err := newMysqlExecTool(newFakeOpen(t, fakeDSN, fx))
+	tl, err := newMysqlExecTool(newFakeOpen(t, fakeDSN, fx), ModeDangerousDeny)
 	if err != nil {
 		t.Fatalf("创建工具失败: %v", err)
 	}
@@ -53,7 +53,7 @@ func TestMysqlExecAcceptsWriteAndDDL(t *testing.T) {
 		t.Run(statement, func(t *testing.T) {
 			fx := &fakeFixture{}
 
-			tl, err := newMysqlExecTool(newFakeOpen(t, fakeDSN, fx))
+			tl, err := newMysqlExecTool(newFakeOpen(t, fakeDSN, fx), ModeDangerousDeny)
 			if err != nil {
 				t.Fatalf("创建工具失败: %v", err)
 			}
@@ -72,7 +72,7 @@ func TestMysqlExecAcceptsWriteAndDDL(t *testing.T) {
 func TestMysqlExecRejectsRead(t *testing.T) {
 	fx := &fakeFixture{}
 
-	tl, err := newMysqlExecTool(newFakeOpen(t, fakeDSN, fx))
+	tl, err := newMysqlExecTool(newFakeOpen(t, fakeDSN, fx), ModeDangerousDeny)
 	if err != nil {
 		t.Fatalf("创建工具失败: %v", err)
 	}
@@ -89,7 +89,8 @@ func TestMysqlExecRejectsRead(t *testing.T) {
 	}
 }
 
-// TestMysqlExecRejectsDestructive 校验 DROP 与 TRUNCATE 被拒且没有下发。
+// TestMysqlExecRejectsDestructive 校验 deny 模式（默认）下 DROP 与 TRUNCATE 不执行，
+// 并向模型返回 canceled 结果。
 func TestMysqlExecRejectsDestructive(t *testing.T) {
 	cases := []struct {
 		sql     string
@@ -105,17 +106,25 @@ func TestMysqlExecRejectsDestructive(t *testing.T) {
 		t.Run(c.sql, func(t *testing.T) {
 			fx := &fakeFixture{}
 
-			tl, err := newMysqlExecTool(newFakeOpen(t, fakeDSN, fx))
+			tl, err := newMysqlExecTool(newFakeOpen(t, fakeDSN, fx), ModeDangerousDeny)
 			if err != nil {
 				t.Fatalf("创建工具失败: %v", err)
 			}
 
-			_, err = tl.InvokableRun(context.Background(), `{"dsn":"`+fakeDSN+`","sql":"`+c.sql+`"}`)
-			if err == nil {
-				t.Fatalf("期望被拒绝，实际执行成功")
+			out, err := tl.InvokableRun(context.Background(), `{"dsn":"`+fakeDSN+`","sql":"`+c.sql+`"}`)
+			if err != nil {
+				t.Fatalf("deny 模式不应返回 error（error 会让整图失败），实际: %v", err)
 			}
-			if !strings.Contains(err.Error(), "危险操作") || !strings.Contains(err.Error(), c.keyword) {
-				t.Errorf("错误信息应含 %s 与「危险操作」，实际: %v", c.keyword, err)
+
+			var got deniedResult
+			if err := json.Unmarshal([]byte(out), &got); err != nil {
+				t.Fatalf("输出不是合法 JSON: %v，原文 %s", err, out)
+			}
+			if !got.Canceled {
+				t.Errorf("canceled 应为 true，实际 %s", out)
+			}
+			if !strings.Contains(got.Message, "危险操作") || !strings.Contains(got.Message, c.keyword) {
+				t.Errorf("提示应含 %s 与「危险操作」，实际: %s", c.keyword, got.Message)
 			}
 			if sent := fx.executedSQL(); len(sent) != 0 {
 				t.Errorf("被拒语句不应下发，实际下发: %v", sent)
@@ -128,7 +137,7 @@ func TestMysqlExecRejectsDestructive(t *testing.T) {
 func TestMysqlExecRejectsUnknown(t *testing.T) {
 	fx := &fakeFixture{}
 
-	tl, err := newMysqlExecTool(newFakeOpen(t, fakeDSN, fx))
+	tl, err := newMysqlExecTool(newFakeOpen(t, fakeDSN, fx), ModeDangerousDeny)
 	if err != nil {
 		t.Fatalf("创建工具失败: %v", err)
 	}
@@ -147,7 +156,7 @@ func TestMysqlExecError(t *testing.T) {
 	sentinel := errors.New("写入炸了")
 	fx := &fakeFixture{execErr: sentinel}
 
-	tl, err := newMysqlExecTool(newFakeOpen(t, fakeDSN, fx))
+	tl, err := newMysqlExecTool(newFakeOpen(t, fakeDSN, fx), ModeDangerousDeny)
 	if err != nil {
 		t.Fatalf("创建工具失败: %v", err)
 	}
@@ -162,7 +171,7 @@ func TestMysqlExecError(t *testing.T) {
 func TestMysqlExecInputRequired(t *testing.T) {
 	fx := &fakeFixture{}
 
-	tl, err := newMysqlExecTool(newFakeOpen(t, fakeDSN, fx))
+	tl, err := newMysqlExecTool(newFakeOpen(t, fakeDSN, fx), ModeDangerousDeny)
 	if err != nil {
 		t.Fatalf("创建工具失败: %v", err)
 	}
