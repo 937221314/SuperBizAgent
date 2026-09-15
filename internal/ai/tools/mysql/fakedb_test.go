@@ -29,6 +29,8 @@ type fakeFixture struct {
 	mu       sync.Mutex
 	queried  []string
 	executed []string
+
+	readOnlyTx bool
 }
 
 // recordQuery 记录一次查询。
@@ -57,6 +59,20 @@ func (f *fakeFixture) executedSQL() []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return append([]string(nil), f.executed...)
+}
+
+// markReadOnlyTx 记录一次只读事务开启。
+func (f *fakeFixture) markReadOnlyTx() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.readOnlyTx = true
+}
+
+// usedReadOnlyTx 返回是否开过只读事务。
+func (f *fakeFixture) usedReadOnlyTx() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.readOnlyTx
 }
 
 var (
@@ -88,8 +104,25 @@ func (c *fakeConn) Prepare(string) (driver.Stmt, error) { return nil, driver.Err
 // Close 无需释放资源。
 func (c *fakeConn) Close() error { return nil }
 
-// Begin 不支持事务。
+// Begin 不会被调用（gorm 总是传 TxOptions，走 BeginTx）。
 func (c *fakeConn) Begin() (driver.Tx, error) { return nil, driver.ErrSkip }
+
+// BeginTx 支持只读事务，便于断言 mysql_query 走的确实是只读事务。
+func (c *fakeConn) BeginTx(_ context.Context, opts driver.TxOptions) (driver.Tx, error) {
+	if opts.ReadOnly {
+		c.fx.markReadOnlyTx()
+	}
+	return fakeTx{}, nil
+}
+
+// fakeTx 是空实现的事务：回滚与提交对 fake 驱动没有区别。
+type fakeTx struct{}
+
+// Commit 提交事务。
+func (fakeTx) Commit() error { return nil }
+
+// Rollback 回滚事务。
+func (fakeTx) Rollback() error { return nil }
 
 // QueryContext 记录并返回 fixture 声明的结果集。
 func (c *fakeConn) QueryContext(_ context.Context, query string, _ []driver.NamedValue) (driver.Rows, error) {
@@ -137,33 +170,55 @@ func (r *fakeRows) Next(dest []driver.Value) error {
 	return nil
 }
 
+// ensureFakeDriver 注册 fake 驱动，全局只注册一次。
+func ensureFakeDriver() {
+	fakeDriverOnce.Do(func() { sql.Register(fakeDriverName, fakeDriver{}) })
+}
+
+// openFakeDB 用 fake 驱动建一个 gorm 连接，同时返回底层 *sql.DB 供调用方关闭。
+func openFakeDB(dsn string) (*gorm.DB, *sql.DB, error) {
+	sqlDB, err := sql.Open(fakeDriverName, dsn)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// SkipInitializeWithVersion 必须为 true，否则 gorm 会去查 SELECT VERSION()。
+	db, err := gorm.Open(gormmysql.New(gormmysql.Config{Conn: sqlDB, SkipInitializeWithVersion: true}), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		_ = sqlDB.Close()
+		return nil, nil, err
+	}
+	return db, sqlDB, nil
+}
+
 // newFakeOpen 注册 fixture 并返回注入 fake 连接的 openMySQLFunc，用例结束自动清理。
+// 同一 DSN 只建一个连接，与生产的连接池缓存语义一致。
 func newFakeOpen(t *testing.T, dsn string, fx *fakeFixture) openMySQLFunc {
 	t.Helper()
 
-	fakeDriverOnce.Do(func() { sql.Register(fakeDriverName, fakeDriver{}) })
+	ensureFakeDriver()
 	fakeRegistry.Store(dsn, fx)
-	t.Cleanup(func() { fakeRegistry.Delete(dsn) })
 
-	return func(gotDSN string) (*gorm.DB, func(), error) {
-		if gotDSN != dsn {
-			return nil, nil, fmt.Errorf("fake open: 意外 dsn %q", gotDSN)
-		}
-
-		sqlDB, err := sql.Open(fakeDriverName, dsn)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		// SkipInitializeWithVersion 必须为 true，否则 gorm 会去查 SELECT VERSION()。
-		db, err := gorm.Open(gormmysql.New(gormmysql.Config{Conn: sqlDB, SkipInitializeWithVersion: true}), &gorm.Config{
-			Logger: logger.Default.LogMode(logger.Silent),
-		})
-		if err != nil {
+	var (
+		once    sync.Once
+		db      *gorm.DB
+		sqlDB   *sql.DB
+		openErr error
+	)
+	t.Cleanup(func() {
+		fakeRegistry.Delete(dsn)
+		if sqlDB != nil {
 			_ = sqlDB.Close()
-			return nil, nil, err
 		}
+	})
 
-		return db, func() { _ = sqlDB.Close() }, nil
+	return func(gotDSN string) (*gorm.DB, error) {
+		if gotDSN != dsn {
+			return nil, fmt.Errorf("fake open: 意外 dsn %q", gotDSN)
+		}
+		once.Do(func() { db, sqlDB, openErr = openFakeDB(dsn) })
+		return db, openErr
 	}
 }

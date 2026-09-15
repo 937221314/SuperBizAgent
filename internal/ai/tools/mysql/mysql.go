@@ -1,40 +1,33 @@
 // Package mysql 提供按调用方给定 DSN 操作 MySQL 的两个工具：mysql_query（只读查询）
 // 与 mysql_exec（写入与 DDL）。
 //
-// 连接由每次调用按入参 DSN 建立、返回前关闭；语句关键字判定只是给模型的引导，
-// 不构成安全边界。设计取舍见 dev-docs/mysql.md。
+// 连接按 DSN 复用（见 pool.go）；语句关键字判定只是给模型的引导，真正的只读约束靠
+// mysql_query 的只读事务。设计取舍见 dev-docs/mysql.md。
 package mysql
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
-	gormmysql "gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
-// openMySQLFunc 按 DSN 建立连接池，release 用于关闭它。抽成函数类型是为了在测试中注入实现。
-type openMySQLFunc func(dsn string) (db *gorm.DB, release func(), err error)
+// 单次调用的资源上限。
+//
+// statementTimeout 是上层没有 deadline 时的兜底；maxResultRows 与 maxResultBytes 防止
+// 大表全量结果撑爆模型上下文。字节数是估算值，只用于在读取阶段提前截断。
+const (
+	statementTimeout = 30 * time.Second
+	maxResultRows    = 200
+	maxResultBytes   = 256 * 1024
+)
 
-// openMySQL 用原生 DSN 建立 gorm 连接；SQL 日志置为静默，避免污染模型上下文。
-func openMySQL(dsn string) (*gorm.DB, func(), error) {
-	db, err := gorm.Open(gormmysql.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Silent),
-	})
-	if err != nil {
-		return nil, nil, fmt.Errorf("连接数据库失败: %w", err)
-	}
-
-	sqlDB, err := db.DB()
-	if err != nil {
-		return nil, nil, fmt.Errorf("获取数据库连接失败: %w", err)
-	}
-
-	return db, func() { _ = sqlDB.Close() }, nil
-}
+// openMySQLFunc 按 DSN 取得连接池；缓存的建连与淘汰由实现自己负责，调用方不需要归还。
+type openMySQLFunc func(dsn string) (*gorm.DB, error)
 
 // validateInput 校验 dsn 与 sql 两个必填参数。
 func validateInput(dsn, statement string) error {
@@ -128,9 +121,38 @@ func isASCIILetter(c byte) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
-// scanRowsToJSON 执行查询并把结果集序列化为 JSON 数组，空结果集返回 []。
+// queryOutput 是 mysql_query 的结果封装。除 Rows 外带上条数与截断标记，
+// 让模型能区分「数据就这么多」与「只看到了一部分」。
+type queryOutput struct {
+	Rows      []map[string]any `json:"rows"`
+	RowCount  int              `json:"row_count"`
+	Truncated bool             `json:"truncated"`
+}
+
+// scanRowsToJSON 在只读事务中执行查询并序列化结果集，空结果集返回 []。
+//
+// 只读事务是关键字白名单之外的第二道闸：即便某条写语句绕过了白名单，MySQL 也会在
+// 服务端拒绝它（Cannot execute statement in a READ ONLY transaction）。文档把临时表
+// 明确列为例外，所以白名单不能因此去掉。
 func scanRowsToJSON(ctx context.Context, db *gorm.DB, query string) (string, error) {
-	rows, err := db.WithContext(ctx).Raw(query).Rows()
+	ctx, cancel := context.WithTimeout(ctx, statementTimeout)
+	defer cancel()
+
+	var out string
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var err error
+		out, err = scanRowsInTx(tx, query)
+		return err
+	}, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return "", err
+	}
+	return out, nil
+}
+
+// scanRowsInTx 读取结果集，达到行数或字节上限就截断并标记。
+func scanRowsInTx(tx *gorm.DB, query string) (string, error) {
+	rows, err := tx.Raw(query).Rows()
 	if err != nil {
 		return "", fmt.Errorf("执行查询失败: %w", err)
 	}
@@ -142,6 +164,8 @@ func scanRowsToJSON(ctx context.Context, db *gorm.DB, query string) (string, err
 	}
 
 	results := make([]map[string]any, 0)
+	totalBytes := 0
+	truncated := false
 	for rows.Next() {
 		values := make([]any, len(columns))
 		valuePtrs := make([]any, len(columns))
@@ -162,6 +186,13 @@ func scanRowsToJSON(ctx context.Context, db *gorm.DB, query string) (string, err
 				row[column] = values[i]
 			}
 		}
+
+		rowBytes := estimateRowBytes(row)
+		if len(results) >= maxResultRows || totalBytes+rowBytes > maxResultBytes {
+			truncated = true
+			break
+		}
+		totalBytes += rowBytes
 		results = append(results, row)
 	}
 
@@ -169,11 +200,29 @@ func scanRowsToJSON(ctx context.Context, db *gorm.DB, query string) (string, err
 		return "", fmt.Errorf("遍历结果集失败: %w", err)
 	}
 
-	return marshalJSON(results)
+	return marshalJSON(queryOutput{Rows: results, RowCount: len(results), Truncated: truncated})
+}
+
+// estimateRowBytes 估算一行序列化后的大小。
+// 值在扫描时已统一成 string，数字等标量按固定开销估算即可，用途只是提前截断。
+func estimateRowBytes(row map[string]any) int {
+	size := 2 // {}
+	for key, value := range row {
+		size += len(key) + 4 // 键的引号与冒号
+		if s, ok := value.(string); ok {
+			size += len(s) + 2
+			continue
+		}
+		size += 8
+	}
+	return size
 }
 
 // execSQL 执行写入或 DDL 语句，返回受影响行数。
 func execSQL(ctx context.Context, db *gorm.DB, statement string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, statementTimeout)
+	defer cancel()
+
 	result := db.WithContext(ctx).Exec(statement)
 	if result.Error != nil {
 		return "", fmt.Errorf("执行 SQL 失败: %w", result.Error)
