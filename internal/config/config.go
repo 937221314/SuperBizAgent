@@ -38,11 +38,25 @@ const (
 	EnvMcpURL = "MCP_URL"
 )
 
+// MySQL 工具相关的环境变量名。
+const (
+	EnvMysqlDangerousStatementMode = "MYSQL_DANGEROUS_STATEMENT_MODE"
+)
+
 // Config 应用总配置。
 type Config struct {
 	Milvus        MilvusConfig        `yaml:"milvus"`
 	TextEmbedding TextEmbeddingConfig `yaml:"text-embedding"`
+	Mysql         MysqlConfig         `yaml:"mysql"`
 	McpURL        string              `yaml:"mcp_url"`
+}
+
+// MysqlConfig MySQL 工具配置，对应配置文件中的 mysql 段。
+type MysqlConfig struct {
+	// DangerousStatementMode 决定 mysql_exec 遇到 DROP/TRUNCATE 时的行为：
+	// deny 直接拒绝，interrupt 挂起等用户确认。取值需与 internal/ai/tools/mysql 的
+	// ModeDangerousDeny / ModeDangerousInterrupt 保持一致。
+	DangerousStatementMode string `yaml:"dangerous_statement_mode"`
 }
 
 // TextEmbeddingConfig 文本向量模型配置，对应配置文件中的 text-embedding 段。
@@ -93,6 +107,11 @@ func defaultConfig() *Config {
 		},
 		TextEmbedding: TextEmbeddingConfig{
 			Model: "qwen3.7-text-embedding",
+		},
+		Mysql: MysqlConfig{
+			// 默认直接拒绝：interrupt 需要编排层支持 checkpoint 与恢复，通路未就绪时
+			// 挂起会变成无人处理的打断信号。
+			DangerousStatementMode: "deny",
 		},
 		McpURL: "http://localhost:3000/sse",
 	}
@@ -158,6 +177,8 @@ func applyEnv(c *Config) {
 		EnvTextEmbeddingBaseURL: &c.TextEmbedding.BaseURL,
 		EnvTextEmbeddingModel:   &c.TextEmbedding.Model,
 		EnvMcpURL:               &c.McpURL,
+
+		EnvMysqlDangerousStatementMode: &c.Mysql.DangerousStatementMode,
 	}
 	for key, target := range overrides {
 		if v := os.Getenv(key); v != "" {
@@ -184,6 +205,9 @@ func fillDefaults(c *Config) {
 	if c.TextEmbedding.Model == "" {
 		c.TextEmbedding.Model = def.TextEmbedding.Model
 	}
+	if c.Mysql.DangerousStatementMode == "" {
+		c.Mysql.DangerousStatementMode = def.Mysql.DangerousStatementMode
+	}
 	if c.McpURL == "" {
 		c.McpURL = def.McpURL
 	}
@@ -197,6 +221,11 @@ func (c *Config) validate() error {
 	}
 	if c.Milvus.VectorDim <= 0 {
 		return fmt.Errorf("配置项 milvus.vector_dim 必须大于 0，当前为 %d", c.Milvus.VectorDim)
+	}
+	switch c.Mysql.DangerousStatementMode {
+	case "deny", "interrupt":
+	default:
+		return fmt.Errorf("配置项 mysql.dangerous_statement_mode 只能是 deny 或 interrupt，当前为 %q", c.Mysql.DangerousStatementMode)
 	}
 	return nil
 }

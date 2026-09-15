@@ -10,6 +10,7 @@
 # 以下环境变量可覆盖对应配置项（优先级：环境变量 > 配置文件 > 代码默认值）：
 #   MILVUS_ADDRESS、MILVUS_USERNAME、MILVUS_PASSWORD、MILVUS_DB_NAME、MILVUS_COLLECTION_NAME
 #   TEXT_EMBEDDING_API_KEY、TEXT_EMBEDDING_BASE_URL、TEXT_EMBEDDING_MODEL
+#   MYSQL_DANGEROUS_STATEMENT_MODE
 # 另外可通过 CONFIG_PATH 指定配置文件的绝对路径。
 
 # server
@@ -61,3 +62,12 @@ milvus:
 
 # mcp
 mcp_url: "http://localhost:3000/sse"
+
+# MySQL 工具（mysql_query / mysql_exec）
+mysql:
+  # mysql_exec 遇到 DROP/TRUNCATE 时的行为：
+  #   deny      直接拒绝，返回 cancelled 结果（默认）
+  #   interrupt 挂起调用，等用户确认后执行
+  # interrupt 需要编排层支持 checkpoint 与恢复（ToolsNode + CheckPointStore + 恢复入口），
+  # 三者未就绪时挂起会变成无人处理的打断信号，因此默认 deny。
+  dangerous_statement_mode: "deny"
