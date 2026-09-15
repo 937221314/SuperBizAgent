@@ -10,7 +10,7 @@ import (
 
 // toolDescMysqlQuery 是 mysql_query 的工具描述。模型只能靠描述在两个工具间选对，
 // 因此这里显式指向 mysql_exec。
-const toolDescMysqlQuery = "对 MySQL 执行只读查询语句（SELECT/SHOW/DESCRIBE/EXPLAIN 等），返回 JSON 对象。" +
+const toolDescMysqlQuery = "对 MySQL 执行只读查询语句（SELECT/WITH/SHOW/DESCRIBE/EXPLAIN 等），返回 JSON 对象。" +
 	"字段：rows 为结果数组，row_count 为条数，truncated 为 true 表示结果超过行数或大小上限而被截断。" +
 	"查询请自带 LIMIT：截断只保证上下文不被撑爆，并不会减少服务端的计算量。" +
 	"这是只读工具：插入、更新、删除或 DDL 请改用 mysql_exec；结果为空数组表示没有匹配数据。"
@@ -37,10 +37,13 @@ func newMysqlQueryTool(open openMySQLFunc) (tool.InvokableTool, error) {
 
 		switch classifyStatement(input.SQL) {
 		case stmtRead:
+		case stmtContextual:
+			// WITH 开头无法从首关键字定性，交给只读事务兜底：
+			// 只读的 CTE 查询照常返回，写语句由 MySQL 在服务端拒绝。
 		case stmtWrite, stmtDestructive:
 			return "", fmt.Errorf("mysql_query 只接受查询语句，写操作或 DDL 请改用 mysql_exec")
 		default:
-			return "", fmt.Errorf("无法识别的 SQL 语句：mysql_query 只接受 SELECT/SHOW/DESCRIBE/EXPLAIN 等查询语句")
+			return "", fmt.Errorf("无法识别的 SQL 语句：mysql_query 只接受 SELECT/WITH/SHOW/DESCRIBE/EXPLAIN 等查询语句")
 		}
 
 		db, err := open(input.DSN)

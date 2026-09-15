@@ -68,6 +68,27 @@ func TestMysqlExecAcceptsWriteAndDDL(t *testing.T) {
 	}
 }
 
+// TestMysqlExecRejectsWith 校验以 WITH 开头的语句被拒并给出改写提示。
+func TestMysqlExecRejectsWith(t *testing.T) {
+	fx := &fakeFixture{}
+
+	tl, err := newMysqlExecTool(newFakeOpen(t, fakeDSN, fx), ModeDangerousDeny)
+	if err != nil {
+		t.Fatalf("创建工具失败: %v", err)
+	}
+
+	_, err = tl.InvokableRun(context.Background(), `{"dsn":"`+fakeDSN+`","sql":"WITH c AS (SELECT 1) DELETE FROM t"}`)
+	if err == nil {
+		t.Fatalf("期望被拒绝，实际执行成功")
+	}
+	if !strings.Contains(err.Error(), "WITH") || !strings.Contains(err.Error(), "mysql_query") {
+		t.Errorf("错误信息应说明改写方式并指向 mysql_query，实际: %v", err)
+	}
+	if sent := fx.executedSQL(); len(sent) != 0 {
+		t.Errorf("被拒语句不应下发，实际下发: %v", sent)
+	}
+}
+
 // TestMysqlExecRejectsRead 校验查询语句被拒并指向 mysql_query。
 func TestMysqlExecRejectsRead(t *testing.T) {
 	fx := &fakeFixture{}
