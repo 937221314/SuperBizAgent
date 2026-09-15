@@ -52,6 +52,9 @@ const (
 	stmtWrite
 	// stmtDestructive 表示 DROP 与 TRUNCATE，破坏力最大，mysql_exec 也需用户二次确认。
 	stmtDestructive
+	// stmtContextual 表示首关键字无法定性，由工具按自身语义决定是否放行。
+	// 目前只有 WITH：既可能是只读的 CTE 查询，也可能是 WITH ... DELETE。
+	stmtContextual
 )
 
 // 关键字集合只覆盖首个关键字，不解析子句。
@@ -63,14 +66,17 @@ var (
 
 // classifyStatement 取首个关键字判定语句类型，跳过前导空白与注释。
 //
-// 需要留意两点：判定不展开子句，所以 WITH ... DELETE 这类会被判为 stmtUnknown 而拒绝；
-// 判定只是给模型的引导，不能当作安全边界——`DELETE` 一旦放行就会真的执行，
-// 真正的只读约束要靠只读事务或只读账号（见 dev-docs/mysql.md）。
+// 判定不展开子句，所以 WITH 开头的语句归为 stmtContextual：既不解析 CTE 内部到底
+// 是查询还是写入，也不给一个错误的确切结论，交由各家工具自己决定（见 stmtContextual）。
+// 除 WITH 之外的判定都只是给模型的引导，不能当作安全边界——`DELETE` 一旦放行就会
+// 真的执行，真正的只读约束要靠 mysql_query 的只读事务（见 dev-docs/mysql.md）。
 func classifyStatement(sqlText string) stmtKind {
 	keyword := firstKeyword(sqlText)
 	switch {
 	case keyword == "":
 		return stmtUnknown
+	case keyword == "WITH":
+		return stmtContextual
 	case destructiveKeywords[keyword]:
 		return stmtDestructive
 	case readKeywords[keyword]:
@@ -145,6 +151,11 @@ func scanRowsToJSON(ctx context.Context, db *gorm.DB, query string) (string, err
 		return err
 	}, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
+		// 只读事务被服务端拒绝时补一句提示，让模型知道该换工具而不是以为 SQL 写错了。
+		// 按错误文本判断是为了不引入驱动依赖，属于 best-effort。
+		if strings.Contains(strings.ToUpper(err.Error()), "READ ONLY") {
+			return "", fmt.Errorf("%w（mysql_query 只读，写操作请改用 mysql_exec）", err)
+		}
 		return "", err
 	}
 	return out, nil

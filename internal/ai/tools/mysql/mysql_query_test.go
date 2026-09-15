@@ -37,7 +37,9 @@ func TestClassifyStatement(t *testing.T) {
 		{"drop", "DROP TABLE t", stmtDestructive},
 		{"注释后小写 drop", "  /* x */ drop database d", stmtDestructive},
 		{"truncate", "TRUNCATE TABLE t", stmtDestructive},
-		{"with 不算只读", "WITH c AS (SELECT 1) DELETE FROM t", stmtUnknown},
+		{"with 查询也叫上下文相关", "WITH c AS (SELECT 1) SELECT * FROM c", stmtContextual},
+		{"with 写入也是上下文相关", "WITH c AS (SELECT 1) DELETE FROM t", stmtContextual},
+		{"with 前导注释", "/* x */ with c as (select 1) select * from c", stmtContextual},
 		{"空串", "", stmtUnknown},
 		{"只有注释", "-- 注释", stmtUnknown},
 		{"未闭合块注释", "/* 未闭合 SELECT 1", stmtUnknown},
@@ -205,7 +207,7 @@ func TestMysqlQueryRejectsNonRead(t *testing.T) {
 		{"drop", "DROP TABLE t", "mysql_exec"},
 		{"truncate", "TRUNCATE TABLE t", "mysql_exec"},
 		{"insert", "INSERT INTO t VALUES (1)", "mysql_exec"},
-		{"with 写语句", "WITH c AS (SELECT 1) DELETE FROM t", "无法识别"},
+		{"未知关键字", "VACUUM t", "无法识别"},
 	}
 
 	for _, c := range cases {
@@ -326,6 +328,62 @@ func TestMysqlQueryPropagatesCallerDeadline(t *testing.T) {
 	left := fx.deadlineLeftOf()
 	if left <= 0 || left > 50*time.Millisecond {
 		t.Errorf("驱动侧应看到调用方的 50ms 截止时间，实际剩余 %v", left)
+	}
+}
+
+// TestMysqlQueryAcceptsWith 校验 WITH 开头的只读 CTE 查询可用（由只读事务兜底）。
+func TestMysqlQueryAcceptsWith(t *testing.T) {
+	fx := &fakeFixture{
+		columns: []string{"id"},
+		rows:    [][]driver.Value{{int64(1)}},
+	}
+
+	tl, err := newMysqlQueryTool(newFakeOpen(t, fakeDSN, fx))
+	if err != nil {
+		t.Fatalf("创建工具失败: %v", err)
+	}
+
+	const statement = "WITH c AS (SELECT 1 AS id) SELECT id FROM c"
+	out, err := tl.InvokableRun(context.Background(), `{"dsn":"`+fakeDSN+`","sql":"`+statement+`"}`)
+	if err != nil {
+		t.Fatalf("CTE 查询应放行，实际报错: %v", err)
+	}
+
+	var got queryOutput
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("输出不是合法 JSON: %v，原文 %s", err, out)
+	}
+	if len(got.Rows) != 1 {
+		t.Errorf("期望 1 行，实际 %d 行", len(got.Rows))
+	}
+	if !fx.usedReadOnlyTx() {
+		t.Errorf("CTE 查询也应在只读事务中执行")
+	}
+	if sent := fx.queriedSQL(); len(sent) != 1 || sent[0] != statement {
+		t.Errorf("下发语句不符: %v", sent)
+	}
+}
+
+// TestMysqlQueryWithWriteRejectedByServer 校验绕道 WITH 的写语句由只读事务拒绝，
+// 且错误信息指向 mysql_exec。
+func TestMysqlQueryWithWriteRejectedByServer(t *testing.T) {
+	sentinel := errors.New("Error 1792 (25006): Cannot execute statement in a READ ONLY transaction")
+	fx := &fakeFixture{queryErr: sentinel}
+
+	tl, err := newMysqlQueryTool(newFakeOpen(t, fakeDSN, fx))
+	if err != nil {
+		t.Fatalf("创建工具失败: %v", err)
+	}
+
+	_, err = tl.InvokableRun(context.Background(), `{"dsn":"`+fakeDSN+`","sql":"WITH c AS (SELECT 1) DELETE FROM t"}`)
+	if err == nil {
+		t.Fatalf("期望只读事务拒绝写语句")
+	}
+	if !errors.Is(err, sentinel) {
+		t.Errorf("应保留原错误，实际: %v", err)
+	}
+	if !strings.Contains(err.Error(), "mysql_exec") {
+		t.Errorf("错误信息应指向 mysql_exec，实际: %v", err)
 	}
 }
 

@@ -85,6 +85,10 @@ func newMysqlExecTool(open openMySQLFunc, mode DangerousStatementMode) (tool.Inv
 			return confirmDestructive(ctx, open, mode, input)
 		case stmtRead:
 			return "", fmt.Errorf("mysql_exec 用于写入或 DDL，查询语句请改用 mysql_query")
+		case stmtContextual:
+			// 以 WITH 开头的 CTE 写入需要先判出内部是查询还是写入，暂不支持：
+			// 明确告知改写方式，比归到「无法识别」更有用。
+			return "", fmt.Errorf("mysql_exec 不支持以 WITH 开头的语句，请改写为等价的 INSERT/UPDATE/DELETE 形式；只读查询请改用 mysql_query")
 		default:
 			return "", fmt.Errorf("无法识别的 SQL 语句：mysql_exec 只接受 INSERT/UPDATE/DELETE/CREATE/ALTER 等写入或 DDL 语句")
 		}
