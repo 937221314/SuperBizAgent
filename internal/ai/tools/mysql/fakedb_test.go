@@ -8,6 +8,7 @@ import (
 	"io"
 	"sync"
 	"testing"
+	"time"
 
 	gormmysql "gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -31,6 +32,13 @@ type fakeFixture struct {
 	executed []string
 
 	readOnlyTx bool
+
+	// blockOnCtx 让查询/写入挂到 ctx 结束，用于验证超时与截止时间透传。
+	blockOnCtx bool
+	// ctxErrors 记录驱动看到的 ctx 错误。
+	ctxErrors []error
+	// deadlineLeft 记录调用驱动时距离 ctx 截止还剩多久。
+	deadlineLeft time.Duration
 }
 
 // recordQuery 记录一次查询。
@@ -73,6 +81,42 @@ func (f *fakeFixture) usedReadOnlyTx() bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.readOnlyTx
+}
+
+// recordCtx 记录驱动看到的 ctx 截止时间（无截止时间时记 0）。
+func (f *fakeFixture) recordCtx(ctx context.Context) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		f.deadlineLeft = 0
+		return
+	}
+	f.deadlineLeft = time.Until(deadline)
+}
+
+// waitCtx 在 blockOnCtx 时挂到 ctx 结束，模拟慢查询；否则立即返回。
+func (f *fakeFixture) waitCtx(ctx context.Context) error {
+	f.recordCtx(ctx)
+	if !f.blockOnCtx {
+		return nil
+	}
+
+	<-ctx.Done()
+	err := ctx.Err()
+
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.ctxErrors = append(f.ctxErrors, err)
+	return err
+}
+
+// deadlineLeftOf 返回驱动侧看到的截止时间剩余量（0 表示没有截止时间）。
+func (f *fakeFixture) deadlineLeftOf() time.Duration {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.deadlineLeft
 }
 
 var (
@@ -125,8 +169,11 @@ func (fakeTx) Commit() error { return nil }
 func (fakeTx) Rollback() error { return nil }
 
 // QueryContext 记录并返回 fixture 声明的结果集。
-func (c *fakeConn) QueryContext(_ context.Context, query string, _ []driver.NamedValue) (driver.Rows, error) {
+func (c *fakeConn) QueryContext(ctx context.Context, query string, _ []driver.NamedValue) (driver.Rows, error) {
 	c.fx.recordQuery(query)
+	if err := c.fx.waitCtx(ctx); err != nil {
+		return nil, err
+	}
 	if c.fx.queryErr != nil {
 		return nil, c.fx.queryErr
 	}
@@ -134,8 +181,11 @@ func (c *fakeConn) QueryContext(_ context.Context, query string, _ []driver.Name
 }
 
 // ExecContext 记录并返回 fixture 声明的受影响行数。
-func (c *fakeConn) ExecContext(_ context.Context, statement string, _ []driver.NamedValue) (driver.Result, error) {
+func (c *fakeConn) ExecContext(ctx context.Context, statement string, _ []driver.NamedValue) (driver.Result, error) {
 	c.fx.recordExec(statement)
+	if err := c.fx.waitCtx(ctx); err != nil {
+		return nil, err
+	}
 	if c.fx.execErr != nil {
 		return nil, c.fx.execErr
 	}

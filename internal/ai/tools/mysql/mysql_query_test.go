@@ -7,6 +7,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/cloudwego/eino/components/tool/utils"
 )
@@ -277,6 +278,54 @@ func TestMysqlQueryInputRequired(t *testing.T) {
 				t.Errorf("错误信息应包含 %q，实际: %v", c.wantErrContains, err)
 			}
 		})
+	}
+}
+
+// TestMysqlQueryAppliesStatementTimeout 校验不依赖调用方 deadline，工具自带超时。
+func TestMysqlQueryAppliesStatementTimeout(t *testing.T) {
+	fx := &fakeFixture{columns: []string{"id"}}
+
+	tl, err := newMysqlQueryTool(newFakeOpen(t, fakeDSN, fx))
+	if err != nil {
+		t.Fatalf("创建工具失败: %v", err)
+	}
+
+	if _, err := tl.InvokableRun(context.Background(), `{"dsn":"`+fakeDSN+`","sql":"SELECT id FROM t"}`); err != nil {
+		t.Fatalf("执行工具失败: %v", err)
+	}
+
+	left := fx.deadlineLeftOf()
+	if left <= 0 {
+		t.Fatalf("驱动侧没有拿到截止时间，说明超时未接入")
+	}
+	if left > statementTimeout {
+		t.Errorf("截止时间剩余 %v 超过 statementTimeout %v", left, statementTimeout)
+	}
+	if left < statementTimeout/2 {
+		t.Errorf("截止时间剩余 %v 明显小于 statementTimeout %v，可能不是工具自己设的", left, statementTimeout)
+	}
+}
+
+// TestMysqlQueryPropagatesCallerDeadline 校验调用方的 deadline 会真的传到驱动。
+func TestMysqlQueryPropagatesCallerDeadline(t *testing.T) {
+	fx := &fakeFixture{columns: []string{"id"}, blockOnCtx: true}
+
+	tl, err := newMysqlQueryTool(newFakeOpen(t, fakeDSN, fx))
+	if err != nil {
+		t.Fatalf("创建工具失败: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	_, err = tl.InvokableRun(ctx, `{"dsn":"`+fakeDSN+`","sql":"SELECT SLEEP(10)"}`)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("期望截止时间错误透传，实际: %v", err)
+	}
+
+	left := fx.deadlineLeftOf()
+	if left <= 0 || left > 50*time.Millisecond {
+		t.Errorf("驱动侧应看到调用方的 50ms 截止时间，实际剩余 %v", left)
 	}
 }
 

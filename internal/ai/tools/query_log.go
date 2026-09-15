@@ -12,7 +12,8 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
-// GetLogMcpTool 从配置的 SSE MCP 服务获取日志类工具，返回的客户端由调用方负责生命周期管理。
+// GetLogMcpTool 从配置的 SSE MCP 服务获取日志类工具。
+// 返回的工具内部持有该 SSE 客户端，连接随进程退出释放，调用方无需也无法单独关闭。
 func GetLogMcpTool(ctx context.Context) ([]tool.BaseTool, error) {
 	cfg, err := config.Get()
 	if err != nil {

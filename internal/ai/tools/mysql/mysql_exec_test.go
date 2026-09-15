@@ -167,6 +167,25 @@ func TestMysqlExecError(t *testing.T) {
 	}
 }
 
+// TestMysqlExecAppliesStatementTimeout 校验写入路径也自带超时。
+func TestMysqlExecAppliesStatementTimeout(t *testing.T) {
+	fx := &fakeFixture{}
+
+	tl, err := newMysqlExecTool(newFakeOpen(t, fakeDSN, fx), ModeDangerousDeny)
+	if err != nil {
+		t.Fatalf("创建工具失败: %v", err)
+	}
+
+	if _, err := tl.InvokableRun(context.Background(), `{"dsn":"`+fakeDSN+`","sql":"UPDATE t SET c = 1"}`); err != nil {
+		t.Fatalf("执行工具失败: %v", err)
+	}
+
+	left := fx.deadlineLeftOf()
+	if left <= 0 || left > statementTimeout {
+		t.Errorf("驱动侧应看到 statementTimeout 以内的截止时间，实际剩余 %v", left)
+	}
+}
+
 // TestMysqlExecInputRequired 校验 dsn 与 sql 为空时的报错。
 func TestMysqlExecInputRequired(t *testing.T) {
 	fx := &fakeFixture{}
