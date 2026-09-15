@@ -204,7 +204,8 @@ func scanRowsInTx(tx *gorm.DB, query string) (string, error) {
 }
 
 // estimateRowBytes 估算一行序列化后的大小。
-// 值在扫描时已统一成 string，数字等标量按固定开销估算即可，用途只是提前截断。
+// 值在扫描时已统一成 string；非 string 标量（数字、time.Time、nil 等）按 time.Time 的
+// 序列化长度估算，宁可估大：估小会让真实输出超出 maxResultBytes。
 func estimateRowBytes(row map[string]any) int {
 	size := 2 // {}
 	for key, value := range row {
@@ -213,7 +214,7 @@ func estimateRowBytes(row map[string]any) int {
 			size += len(s) + 2
 			continue
 		}
-		size += 8
+		size += 26
 	}
 	return size
 }

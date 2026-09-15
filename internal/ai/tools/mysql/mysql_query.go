@@ -12,6 +12,7 @@ import (
 // 因此这里显式指向 mysql_exec。
 const toolDescMysqlQuery = "对 MySQL 执行只读查询语句（SELECT/SHOW/DESCRIBE/EXPLAIN 等），返回 JSON 对象。" +
 	"字段：rows 为结果数组，row_count 为条数，truncated 为 true 表示结果超过行数或大小上限而被截断。" +
+	"查询请自带 LIMIT：截断只保证上下文不被撑爆，并不会减少服务端的计算量。" +
 	"这是只读工具：插入、更新、删除或 DDL 请改用 mysql_exec；结果为空数组表示没有匹配数据。"
 
 // QueryInput 是 mysql_query 工具的入参。
