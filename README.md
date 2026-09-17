@@ -9,6 +9,8 @@ SuperBizAgent 是一个使用 Go 语言开发的业务代理服务。当前已�
 - **SSE 流式推送**：`internal/logic/sse` 提供客户端生命周期管理与消息投递；
 - **Milvus 向量能力**：`internal/ai` 下提供文档加载、文本向量化、向量索引与检索组件；
 - **统一配置加载**：`internal/config` 按「环境变量 > 配置文件 > 代码默认值」合并配置；
+- **AI 工具集**：`internal/ai/tools` 下提供 MySQL 读写、内部文档检索、当前时间与 Prometheus 告警查询工具；
+  工具已具备构造与单测，尚未挂载到 ToolsNode（见 `dev-docs/todo.md`）；
 - **HTTP 中间件与日志回调**：`utility/middleware`、`utility/logcallback`。
 
 ## 环境要求
@@ -59,7 +61,12 @@ SuperBizAgent/
 │   │   ├── indexer/    # Milvus 索引器
 │   │   ├── loader/     # 文档加载器
 │   │   ├── retriever/  # Milvus 检索器
-│   │   └── tools/      # AI 工具（如 MCP）
+│   │   └── tools/      # AI 工具（每个工具各自成子包）
+│   │       ├── currenttime/  # get_current_time：当前时间
+│   │       ├── docsearch/    # query_internal_docs：内部文档检索
+│   │       ├── mysql/        # mysql_query / mysql_exec：MySQL 读写
+│   │       ├── prometheus/   # query_prometheus_alerts：Prometheus 活跃告警
+│   │       └── query_log.go  # 日志类 MCP 工具获取
 │   ├── config/         # 配置加载与默认值
 │   └── logic/          # 业务逻辑
 │       └── sse/        # SSE 流式处理
@@ -84,6 +91,8 @@ SuperBizAgent/
 - 配置由 `internal/config` 加载，默认读取 `manifest/config/config.yaml`，可用 `CONFIG_PATH` 指定其它路径。
 - 优先级：**环境变量 > 配置文件 > 代码默认值**；配置文件不存在时使用内置默认值。
 - 示例见 `manifest/config/config.example.yaml`，环境变量与配置项清单详见 `dev-docs/configuration.md`。
+- 工具相关配置项：`mysql.dangerous_statement_mode`（`mysql_exec` 遇到 DROP/TRUNCATE 的行为）、
+  `prometheus.base_url`（告警查询地址）、`mcp_url`（日志类 MCP 服务地址）。
 - `manifest/config/config.yaml` 含明文密码，已加入 `.gitignore`，不要提交。
 
 ## 开发约定
