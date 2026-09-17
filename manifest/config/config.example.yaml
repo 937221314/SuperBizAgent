@@ -11,6 +11,7 @@
 #   MILVUS_ADDRESS、MILVUS_USERNAME、MILVUS_PASSWORD、MILVUS_DB_NAME、MILVUS_COLLECTION_NAME
 #   TEXT_EMBEDDING_API_KEY、TEXT_EMBEDDING_BASE_URL、TEXT_EMBEDDING_MODEL
 #   MYSQL_DANGEROUS_STATEMENT_MODE
+#   PROMETHEUS_BASE_URL
 # 另外可通过 CONFIG_PATH 指定配置文件的绝对路径。
 
 # server
@@ -62,6 +63,11 @@ milvus:
 
 # mcp
 mcp_url: "http://localhost:3000/sse"
+
+# Prometheus 告警工具（query_prometheus_alerts）
+prometheus:
+  # Prometheus 服务地址，使用前自行启动 Prometheus 容器
+  base_url: "http://127.0.0.1:9090"
 
 # MySQL 工具（mysql_query / mysql_exec）
 mysql:

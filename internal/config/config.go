@@ -38,6 +38,11 @@ const (
 	EnvMcpURL = "MCP_URL"
 )
 
+// Prometheus 告警工具相关的环境变量名。
+const (
+	EnvPrometheusBaseURL = "PROMETHEUS_BASE_URL"
+)
+
 // MySQL 工具相关的环境变量名。
 const (
 	EnvMysqlDangerousStatementMode = "MYSQL_DANGEROUS_STATEMENT_MODE"
@@ -48,7 +53,14 @@ type Config struct {
 	Milvus        MilvusConfig        `yaml:"milvus"`
 	TextEmbedding TextEmbeddingConfig `yaml:"text-embedding"`
 	Mysql         MysqlConfig         `yaml:"mysql"`
+	Prometheus    PrometheusConfig    `yaml:"prometheus"`
 	McpURL        string              `yaml:"mcp_url"`
+}
+
+// PrometheusConfig Prometheus 告警工具配置，对应配置文件中的 prometheus 段。
+type PrometheusConfig struct {
+	// BaseURL Prometheus 服务地址，例如 http://127.0.0.1:9090
+	BaseURL string `yaml:"base_url"`
 }
 
 // MysqlConfig MySQL 工具配置，对应配置文件中的 mysql 段。
@@ -114,6 +126,9 @@ func defaultConfig() *Config {
 			DangerousStatementMode: "deny",
 		},
 		McpURL: "http://localhost:3000/sse",
+		Prometheus: PrometheusConfig{
+			BaseURL: "http://127.0.0.1:9090",
+		},
 	}
 }
 
@@ -179,6 +194,7 @@ func applyEnv(c *Config) {
 		EnvMcpURL:               &c.McpURL,
 
 		EnvMysqlDangerousStatementMode: &c.Mysql.DangerousStatementMode,
+		EnvPrometheusBaseURL:           &c.Prometheus.BaseURL,
 	}
 	for key, target := range overrides {
 		if v := os.Getenv(key); v != "" {
@@ -210,6 +226,9 @@ func fillDefaults(c *Config) {
 	}
 	if c.McpURL == "" {
 		c.McpURL = def.McpURL
+	}
+	if c.Prometheus.BaseURL == "" {
+		c.Prometheus.BaseURL = def.Prometheus.BaseURL
 	}
 }
 
