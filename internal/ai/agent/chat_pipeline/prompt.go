@@ -17,7 +17,7 @@ type ChatTemplateConfig struct {
 func newChatTemplate(ctx context.Context) (ctp prompt.ChatTemplate, err error) {
 	// TODO Modify component configuration here.
 	config := &ChatTemplateConfig{
-		FormatType: schema.FormatType(1),
+		FormatType: schema.FString,
 		Templates: []schema.MessagesTemplate{
 			schema.SystemMessage(systemPrompt),
 			schema.MessagesPlaceholder("history", false),

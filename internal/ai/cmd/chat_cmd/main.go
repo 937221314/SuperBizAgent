@@ -2,12 +2,10 @@ package main
 
 import (
 	"SuperBizAgent/internal/ai/agent/chat_pipeline"
-	"SuperBizAgent/utility/logcallback"
 	"SuperBizAgent/utility/mem"
 	"context"
 	"fmt"
 
-	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/joho/godotenv"
@@ -35,7 +33,8 @@ func main() {
 	}
 
 	// 第一次对话
-	out, err := runner.Invoke(ctx, userMessage, compose.WithCallbacks(logcallback.New(nil)))
+	// out, err := runner.Invoke(ctx, userMessage, compose.WithCallbacks(logcallback.New(nil)))
+	out, err := runner.Invoke(ctx, userMessage)
 	if err != nil {
 		// panic(err)
 		g.Log().Fatalf(ctx, "执行 agent 失败:%v", err)
@@ -55,7 +54,8 @@ func main() {
 		History: mem.GetSimpleMemory(id).GetMessages(),
 	}
 
-	out, err = runner.Invoke(ctx, userMessage, compose.WithCallbacks(logcallback.New(nil)))
+	// out, err = runner.Invoke(ctx, userMessage, compose.WithCallbacks(logcallback.New(nil)))
+	out, err = runner.Invoke(ctx, userMessage)
 	if err != nil {
 		// panic(err)
 		g.Log().Fatalf(ctx, "执行 agent 失败:%v", err)
