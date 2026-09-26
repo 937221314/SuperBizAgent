@@ -7,6 +7,7 @@ package embedder
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"SuperBizAgent/internal/config"
@@ -27,6 +28,9 @@ func DashscopeEmbedding(ctx context.Context) (emb embedding.Embedder, err error)
 		return nil, fmt.Errorf("文本模型配置不完整，请检查 text-embedding.api_key/base_url/model")
 	}
 
+	if embCfg.APIKey == "DASHSCOPE_API_KEY" {
+		embCfg.APIKey = os.Getenv("DASHSCOPE_API_KEY")
+	}
 	// 与集合向量字段维度保持同源，避免维度不一致导致写入失败
 	dim := int(cfg.Milvus.VectorDim)
 
