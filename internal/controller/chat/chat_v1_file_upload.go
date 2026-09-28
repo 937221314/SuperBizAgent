@@ -21,7 +21,7 @@ import (
 	"github.com/milvus-io/milvus/client/v2/milvusclient"
 )
 
-// FileUpload 处理文件上传请求，功能尚未实现。
+// FileUpload 处理文件上传请求，保存文件并构建知识库索引。
 func (c *ControllerV1) FileUpload(ctx context.Context, req *v1.FileUploadReq) (res *v1.FileUploadRes, err error) {
 	// 从请求中获取文件参数
 	r := g.RequestFromCtx(ctx)
@@ -38,28 +38,28 @@ func (c *ControllerV1) FileUpload(ctx context.Context, req *v1.FileUploadReq) (r
 
 	// 获取原始文件名
 	oldFileName := uploadFile.Filename
-	// 完成的保存路径
-	savePath := filepath.Join(common.FileDir)
+	// 保存目录
+	saveDir := filepath.Join(common.FileDir)
 
-	// 保存文件
-	_, err = uploadFile.Save(savePath, false)
+	// 保存文件，返回实际保存的完整路径
+	savedFilePath, err := uploadFile.Save(saveDir, false)
 	if err != nil {
 		return nil, gerror.Wrapf(err, "保存文件失败")
 	}
 
 	// 获取文件信息
-	fileInfo, err := os.Stat(savePath)
+	fileInfo, err := os.Stat(savedFilePath)
 	if err != nil {
 		return nil, gerror.Wrapf(err, "获取文件信息失败")
 	}
 
 	res = &v1.FileUploadRes{
 		FileName: oldFileName,
-		FilePath: savePath,
+		FilePath: savedFilePath,
 		FileSize: fileInfo.Size(),
 	}
 
-	err = buildIntoIndex(ctx, common.FileDir+"/"+oldFileName)
+	err = buildIntoIndex(ctx, savedFilePath)
 	if err != nil {
 		return nil, gerror.Wrapf(err, "构建知识库失败")
 	}
