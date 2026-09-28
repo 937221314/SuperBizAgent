@@ -11,6 +11,8 @@ SuperBizAgent 是一个使用 Go 语言开发的业务代理服务。当前已�
 - **统一配置加载**：`internal/config` 按「环境变量 > 配置文件 > 代码默认值」合并配置；
 - **AI 工具集**：`internal/ai/tools` 下提供 MySQL 读写、内部文档检索、当前时间与 Prometheus 告警查询工具；
   工具已具备构造与单测，尚未挂载到 ToolsNode（见 `dev-docs/todo.md`）；
+- **聊天 HTTP 接口**：`api/chat` 与 `internal/controller/chat` 定义对话、SSE 流式、文件上传与 AI 运维接口；
+  控制器已就绪，HTTP 服务装配待完成（`main.go` 目前为占位实现）；
 - **HTTP 中间件与日志回调**：`utility/middleware`、`utility/logcallback`。
 
 ## 环境要求
@@ -52,14 +54,23 @@ make fmt     # gofmt -w .
 SuperBizAgent/
 ├── api/                # API 接口定义
 │   └── chat/           # 聊天相关接口
+│       └── v1/         # 请求 / 响应结构定义
 ├── dev-docs/           # 开发文档（本地维护，不纳入版本控制）
 ├── docs/               # 知识库文档目录（运行期数据，不纳入版本控制）
 ├── hack/               # 构建、脚本等工具
 ├── internal/           # 内部实现（不对外暴露）
 │   ├── ai/             # AI 组件
+│   │   ├── agent/      # 多智能体与流水线编排
+│   │   │   ├── chat_pipeline/           # 对话流水线（RAG + ReAct）
+│   │   │   ├── knowledge_index_pipeline/ # 知识库入库流水线
+│   │   │   └── plan_execute_replan/     # plan-execute-replan 多智能体
+│   │   ├── cmd/        # 命令行调试入口
+│   │   │   ├── chat_cmd/      # 对话调试命令
+│   │   │   └── knowledge_cmd/ # 知识库入库命令
 │   │   ├── embedder/   # 文本向量模型
 │   │   ├── indexer/    # Milvus 索引器
 │   │   ├── loader/     # 文档加载器
+│   │   ├── models/     # 模型构造器（OpenAI 兼容协议）
 │   │   ├── retriever/  # Milvus 检索器
 │   │   └── tools/      # AI 工具（每个工具各自成子包）
 │   │       ├── currenttime/  # get_current_time：当前时间
@@ -68,6 +79,8 @@ SuperBizAgent/
 │   │       ├── prometheus/   # query_prometheus_alerts：Prometheus 活跃告警
 │   │       └── query_log.go  # 日志类 MCP 工具获取
 │   ├── config/         # 配置加载与默认值
+│   ├── controller/     # HTTP 控制器
+│   │   └── chat/       # 聊天接口（对话 / 流式 / 上传 / AIOps）
 │   └── logic/          # 业务逻辑
 │       └── sse/        # SSE 流式处理
 ├── manifest/           # 配置与清单
