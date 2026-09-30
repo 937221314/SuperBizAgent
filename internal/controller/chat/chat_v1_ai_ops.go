@@ -5,9 +5,7 @@ import (
 	"SuperBizAgent/internal/ai/agent/plan_execute_replan"
 	"context"
 	"encoding/json"
-	"fmt"
 
-	"github.com/cloudwego/eino-examples/adk/common/prints"
 	"github.com/cloudwego/eino/adk"
 	"github.com/gogf/gf/v2/errors/gerror"
 )
@@ -47,8 +45,8 @@ func (c *ControllerV1) AIOps(ctx context.Context, req *v1.AIOpsReq) (res *v1.AIO
 		if !ok {
 			break
 		}
-		fmt.Println("=== event ===")
-		prints.Event(event) // 输出调试信息
+		// fmt.Println("=== event ===")
+		// prints.Event(event) // 输出调试信息
 		if event.Err != nil {
 			return nil, gerror.Wrapf(event.Err, "智能运维智能体执行失败")
 		}
