@@ -16,6 +16,32 @@ SuperBizAgent 是一个使用 Go 语言开发的业务代理服务。当前已�
 - **前端界面**：`SuperBizAgentFrontend/` 提供基于 Vite + TypeScript 的对话界面（快速/流式对话、历史记录、文件上传、AI Ops）；
 - **HTTP 中间件与日志回调**：`utility/middleware`、`utility/logcallback`。
 
+## 技术栈
+
+### 后端
+
+| 类别 | 选型 |
+| --- | --- |
+| 语言 | Go 1.27.1 |
+| Web 框架 | GoFrame v2（`ghttp`，统一响应与 CORS 中间件） |
+| 智能体编排 | CloudWeGo Eino（`compose` / `adk`：RAG、ReAct、plan-execute-replan） |
+| 模型接入 | OpenAI 兼容协议（`eino-ext` embedding / model，DashScope） |
+| 向量库 | Milvus（`milvus-io/milvus/client/v2`） |
+| 关系库 | MySQL（GORM） |
+| 外部集成 | Prometheus 告警查询、MCP（`mark3labs/mcp-go`） |
+| 实时推送 | SSE（`internal/logic/sse`） |
+| 配置加载 | YAML + 环境变量（`yaml.v3`、`joho/godotenv`） |
+
+### 前端
+
+| 类别 | 选型 |
+| --- | --- |
+| 构建工具 | Vite |
+| 语言 | TypeScript（`strict`） |
+| 渲染方式 | 原生 DOM（未引入前端框架） |
+| Markdown | marked + highlight.js + DOMPurify |
+| 数据持久化 | 浏览器 localStorage |
+
 ## 环境要求
 
 - Go 1.27.1 或更高版本
