@@ -12,12 +12,14 @@ SuperBizAgent 是一个使用 Go 语言开发的业务代理服务。当前已�
 - **AI 工具集**：`internal/ai/tools` 下提供 MySQL 读写、内部文档检索、当前时间与 Prometheus 告警查询工具；
   工具已具备构造与单测，尚未挂载到 ToolsNode（见 `dev-docs/todo.md`）；
 - **聊天 HTTP 接口**：`api/chat` 与 `internal/controller/chat` 定义对话、SSE 流式、文件上传与 AI 运维接口；
-  控制器已就绪，HTTP 服务装配待完成（`main.go` 目前为占位实现）；
+  `main.go` 已装配 HTTP 服务并监听 `:6872`，响应统一由 `utility/middleware` 包裹为 `{code,message,data}`；
+- **前端界面**：`SuperBizAgentFrontend/` 提供基于 Vite + TypeScript 的对话界面（快速/流式对话、历史记录、文件上传、AI Ops）；
 - **HTTP 中间件与日志回调**：`utility/middleware`、`utility/logcallback`。
 
 ## 环境要求
 
 - Go 1.27.1 或更高版本
+- Node.js 20+（仅前端开发与构建需要）
 
 ## 快速开始
 
@@ -37,15 +39,33 @@ go run .
 go build -o SuperBizAgent .
 ```
 
+## 前端
+
+对话界面位于 `SuperBizAgentFrontend/`，技术栈为 Vite + TypeScript（详见其 [README](./SuperBizAgentFrontend/README.md)）。
+
+```bash
+cd SuperBizAgentFrontend
+npm install        # 首次安装依赖
+npm run dev        # 开发服务器（默认 http://localhost:5173）
+npm run typecheck  # 类型检查
+npm run build      # 构建，产出 dist/
+```
+
+- 后端默认地址 `http://localhost:6872/api`，在 `SuperBizAgentFrontend/src/api/http.ts` 中配置。
+- 前端为独立静态工程，由静态服务器托管 `dist/`；Go 后端不托管前端静态资源。
+
 ## 常用命令
 
 ```bash
-make check   # fmt + vet + lint + test，提交前执行
-make build   # 构建全部包
-make vet     # go vet ./...
-make lint    # golangci-lint run ./...
-make test    # go test -race ./...
-make fmt     # gofmt -w .
+make check              # fmt + vet + lint + test，提交前执行
+make build              # 构建全部包
+make vet                # go vet ./...
+make lint               # golangci-lint run ./...
+make test               # go test -race ./...
+make fmt                # gofmt -w .
+make frontend-install   # 前端安装依赖（首次）
+make frontend-typecheck # 前端类型检查
+make frontend-build     # 前端构建（产出 SuperBizAgentFrontend/dist/）
 ```
 
 ## 目录结构
@@ -91,6 +111,7 @@ SuperBizAgent/
 │   ├── logcallback/    # eino 日志回调
 │   ├── mem/            # 会话记忆
 │   └── middleware/     # HTTP 中间件
+├── SuperBizAgentFrontend/  # 前端对话界面（Vite + TypeScript）
 ├── main.go             # 程序入口
 ├── go.mod              # Go 模块定义
 ├── Makefile            # 常用构建与检查命令
@@ -112,6 +133,7 @@ SuperBizAgent/
 
 - 本项目**优先使用中文交流**，详见 [AGENTS.md](./AGENTS.md)。
 - 提交前确保 `go build ./...` 通过，并执行 `make check`（fmt/vet/lint/test）。
+  改动前端时另需 `make frontend-typecheck`（必要时 `make frontend-build`）。
 - 提交信息使用语义化前缀（`feat:`、`fix:`、`chore:`、`docs:` 等）。
 - `dev-docs/` 存放开发文档，`docs/` 被程序用作知识库文档目录，两者内容均不纳入版本控制
   （`docs/` 仅保留 `.gitkeep` 占位）。
