@@ -1,0 +1,6 @@
+{
+  "name": "superbizagent-frontend",
+  "version": "1.0.0",
+  "description": "SuperBizAgent 前端对话界面",
+  "main": "index.html"
+}
