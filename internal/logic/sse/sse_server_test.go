@@ -288,3 +288,35 @@ func TestServerClientID(t *testing.T) {
 	_ = conn.Close()
 	waitForClientCount(t, srv, 0, 3*time.Second)
 }
+
+func TestServerMessageCloseEndsStream(t *testing.T) {
+	srv := New()
+	addr := startSSEServer(t, srv)
+
+	conn, resp, br := dialSSE(t, addr, "close-1")
+	defer func() {
+		_ = conn.Close()
+	}()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("握手状态码 = %d, want 200", resp.StatusCode)
+	}
+
+	// 握手的两帧：retry 与 connected
+	readFrame(t, conn, br)
+	readFrame(t, conn, br)
+
+	// 下发 Close 标记的末帧：应写到该帧后再结束流。
+	if err := srv.Send("close-1", Message{Event: "done", Data: "流完毕", Close: true}); err != nil {
+		t.Fatalf("Send 失败: %v", err)
+	}
+	last := readFrame(t, conn, br)
+	if last["event"] != "done" || last["data"] != "流完毕" {
+		t.Fatalf("末帧 = %v, want done/流完毕", last)
+	}
+
+	// Run 退出后客户端应被注销（handler 随之返回，HTTP 响应体结束）。
+	waitForClientCount(t, srv, 0, 3*time.Second)
+	if err := srv.Send("close-1", Message{Data: "x"}); !errors.Is(err, ErrClientNotFound) {
+		t.Fatalf("Send(已收流客户端) = %v, want ErrClientNotFound", err)
+	}
+}

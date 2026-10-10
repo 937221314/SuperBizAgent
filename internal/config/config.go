@@ -38,17 +38,44 @@ const (
 	EnvMcpURL = "MCP_URL"
 )
 
+// Prometheus 告警工具相关的环境变量名。
+const (
+	EnvPrometheusBaseURL = "PROMETHEUS_BASE_URL"
+)
+
 // MySQL 工具相关的环境变量名。
 const (
 	EnvMysqlDangerousStatementMode = "MYSQL_DANGEROUS_STATEMENT_MODE"
 )
 
+// 知识库文档目录相关的环境变量名。
+const (
+	EnvFileDir = "FILE_DIR"
+)
+
 // Config 应用总配置。
 type Config struct {
-	Milvus        MilvusConfig        `yaml:"milvus"`
-	TextEmbedding TextEmbeddingConfig `yaml:"text-embedding"`
-	Mysql         MysqlConfig         `yaml:"mysql"`
-	McpURL        string              `yaml:"mcp_url"`
+	Milvus         MilvusConfig         `yaml:"milvus"`
+	TextEmbedding  TextEmbeddingConfig  `yaml:"text-embedding"`
+	Mysql          MysqlConfig          `yaml:"mysql"`
+	Prometheus     PrometheusConfig     `yaml:"prometheus"`
+	KnowledgeChunk KnowledgeChunkConfig `yaml:"knowledge_chunk"`
+	McpURL         string               `yaml:"mcp_url"`
+	FileDir        string               `yaml:"file_dir"`
+}
+
+// KnowledgeChunkConfig 知识库文档切分参数，对应配置文件中的 knowledge_chunk 段。
+type KnowledgeChunkConfig struct {
+	// ChunkSize 每个分片的最大字符数（按 rune 计），必须大于 0
+	ChunkSize int `yaml:"chunk_size"`
+	// OverlapSize 相邻分片的重叠字符数，需大于等于 0 且小于 ChunkSize
+	OverlapSize int `yaml:"overlap_size"`
+}
+
+// PrometheusConfig Prometheus 告警工具配置，对应配置文件中的 prometheus 段。
+type PrometheusConfig struct {
+	// BaseURL Prometheus 服务地址，例如 http://127.0.0.1:9090
+	BaseURL string `yaml:"base_url"`
 }
 
 // MysqlConfig MySQL 工具配置，对应配置文件中的 mysql 段。
@@ -113,7 +140,15 @@ func defaultConfig() *Config {
 			// 挂起会变成无人处理的打断信号。
 			DangerousStatementMode: "deny",
 		},
-		McpURL: "http://localhost:3000/sse",
+		McpURL:  "http://localhost:3000/sse",
+		FileDir: common.FileDir,
+		KnowledgeChunk: KnowledgeChunkConfig{
+			ChunkSize:   1000,
+			OverlapSize: 200,
+		},
+		Prometheus: PrometheusConfig{
+			BaseURL: "http://127.0.0.1:9090",
+		},
 	}
 }
 
@@ -179,6 +214,8 @@ func applyEnv(c *Config) {
 		EnvMcpURL:               &c.McpURL,
 
 		EnvMysqlDangerousStatementMode: &c.Mysql.DangerousStatementMode,
+		EnvPrometheusBaseURL:           &c.Prometheus.BaseURL,
+		EnvFileDir:                     &c.FileDir,
 	}
 	for key, target := range overrides {
 		if v := os.Getenv(key); v != "" {
@@ -211,6 +248,18 @@ func fillDefaults(c *Config) {
 	if c.McpURL == "" {
 		c.McpURL = def.McpURL
 	}
+	if c.Prometheus.BaseURL == "" {
+		c.Prometheus.BaseURL = def.Prometheus.BaseURL
+	}
+	if c.FileDir == "" {
+		c.FileDir = def.FileDir
+	}
+	if c.KnowledgeChunk.ChunkSize <= 0 {
+		c.KnowledgeChunk.ChunkSize = def.KnowledgeChunk.ChunkSize
+	}
+	if c.KnowledgeChunk.OverlapSize < 0 {
+		c.KnowledgeChunk.OverlapSize = def.KnowledgeChunk.OverlapSize
+	}
 }
 
 // validate 校验必填项。
@@ -226,6 +275,12 @@ func (c *Config) validate() error {
 	case "deny", "interrupt":
 	default:
 		return fmt.Errorf("配置项 mysql.dangerous_statement_mode 只能是 deny 或 interrupt，当前为 %q", c.Mysql.DangerousStatementMode)
+	}
+	if c.KnowledgeChunk.ChunkSize <= 0 {
+		return fmt.Errorf("配置项 knowledge_chunk.chunk_size 必须大于 0，当前为 %d", c.KnowledgeChunk.ChunkSize)
+	}
+	if c.KnowledgeChunk.OverlapSize < 0 || c.KnowledgeChunk.OverlapSize >= c.KnowledgeChunk.ChunkSize {
+		return fmt.Errorf("配置项 knowledge_chunk.overlap_size 必须大于等于 0 且小于 chunk_size，当前为 %d", c.KnowledgeChunk.OverlapSize)
 	}
 	return nil
 }

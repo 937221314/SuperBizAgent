@@ -1,4 +1,4 @@
-.PHONY: build vet test lint fmt check
+.PHONY: build vet test lint fmt check frontend-install frontend-typecheck frontend-build
 
 # 构建全部包
 build:
@@ -22,3 +22,14 @@ fmt:
 
 # 提交前完整检查
 check: fmt vet lint test
+
+# --- 前端（SuperBizAgentFrontend）---
+# 首次使用需先执行 frontend-install
+frontend-install:
+	cd SuperBizAgentFrontend && npm install
+
+frontend-typecheck:
+	cd SuperBizAgentFrontend && npm run typecheck
+
+frontend-build:
+	cd SuperBizAgentFrontend && npm run build
