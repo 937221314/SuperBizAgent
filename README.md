@@ -8,6 +8,8 @@ SuperBizAgent 是一个使用 Go 语言开发的业务代理服务。当前已�
 
 - **SSE 流式推送**：`internal/logic/sse` 提供客户端生命周期管理与消息投递；
 - **Milvus 向量能力**：`internal/ai` 下提供文档加载、文本向量化、向量索引与检索组件；
+  知识库入库支持 `.md`/`.txt`/`.pdf`/`.docx`（`.doc` 暂不支持，需先转 `.docx`），
+  入库流程与切分参数见 `dev-docs/knowledge-index.md`；
 - **统一配置加载**：`internal/config` 按「环境变量 > 配置文件 > 代码默认值」合并配置；
 - **AI 工具集**：`internal/ai/tools` 下提供 MySQL 读写、内部文档检索、当前时间与 Prometheus 告警查询工具；
   工具已具备构造与单测，尚未挂载到 ToolsNode（见 `dev-docs/todo.md`）；
@@ -153,6 +155,8 @@ SuperBizAgent/
 - 示例见 `manifest/config/config.example.yaml`，环境变量与配置项清单详见 `dev-docs/configuration.md`。
 - 工具相关配置项：`mysql.dangerous_statement_mode`（`mysql_exec` 遇到 DROP/TRUNCATE 的行为）、
   `prometheus.base_url`（告警查询地址）、`mcp_url`（日志类 MCP 服务地址）。
+- 知识库切分：`knowledge_chunk.chunk_size`（分片最大字符数）、`knowledge_chunk.overlap_size`
+  （相邻分片重叠字符数），仅 Markdown 之外格式的递归切分使用。
 - `manifest/config/config.yaml` 含明文密码，已加入 `.gitignore`，不要提交。
 
 ## 开发约定
