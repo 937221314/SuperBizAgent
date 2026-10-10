@@ -14,8 +14,9 @@ import { ToolsMenu } from './ui/toolsMenu';
 import type { ChatHistory, Message, Mode, Role } from './types/chat';
 import { getEl, getElOrNull } from './utils/dom';
 
-const ALLOWED_EXTENSIONS = ['.txt', '.md', '.markdown'];
+const ALLOWED_EXTENSIONS = ['.txt', '.md', '.markdown', '.pdf', '.docx'];
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
+const UNSUPPORTED_FILE_MESSAGE = '只支持上传 TXT、Markdown、PDF、DOCX 格式的文件';
 
 // isAllowedFile 校验上传文件类型。
 function isAllowedFile(file: File): boolean {
@@ -297,7 +298,7 @@ export class SuperBizAgentApp {
       return;
     }
     if (!isAllowedFile(file)) {
-      showNotification('只支持上传 TXT 或 Markdown (.md) 格式的文件', 'error');
+      showNotification(UNSUPPORTED_FILE_MESSAGE, 'error');
       this.fileInput.value = '';
       return;
     }
@@ -307,7 +308,7 @@ export class SuperBizAgentApp {
   // uploadFile 上传文件到知识库。
   private async uploadFile(file: File): Promise<void> {
     if (!isAllowedFile(file)) {
-      showNotification('只支持上传 TXT 或 Markdown (.md) 格式的文件', 'error');
+      showNotification(UNSUPPORTED_FILE_MESSAGE, 'error');
       return;
     }
     if (file.size > MAX_FILE_SIZE) {
