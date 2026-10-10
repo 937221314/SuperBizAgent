@@ -4,6 +4,7 @@ import (
 	v1 "SuperBizAgent/api/chat/v1"
 	"SuperBizAgent/internal/ai/agent/knowledge_index_pipeline"
 	loader2 "SuperBizAgent/internal/ai/loader"
+	"SuperBizAgent/internal/config"
 	"SuperBizAgent/utility/client"
 	"SuperBizAgent/utility/common"
 	"SuperBizAgent/utility/logcallback"
@@ -29,23 +30,29 @@ func (c *ControllerV1) FileUpload(ctx context.Context, req *v1.FileUploadReq) (r
 	if uploadFile == nil {
 		return nil, gerror.New("请上传文件")
 	}
+	// 从配置读取知识库文档存放目录
+	cfg, err := config.Get()
+	if err != nil {
+		return nil, gerror.Wrapf(err, "加载配置失败")
+	}
+	fileDir := cfg.FileDir
+
 	// 确保上传目录存在
-	if !gfile.Exists(common.FileDir) {
-		if err := gfile.Mkdir(common.FileDir); err != nil {
-			return nil, gerror.Wrapf(err, "创建目录失败: %s", common.FileDir)
+	if !gfile.Exists(fileDir) {
+		if err := gfile.Mkdir(fileDir); err != nil {
+			return nil, gerror.Wrapf(err, "创建目录失败: %s", fileDir)
 		}
 	}
 
 	// 获取原始文件名
 	oldFileName := uploadFile.Filename
-	// 保存目录
-	saveDir := filepath.Join(common.FileDir)
 
-	// 保存文件，返回实际保存的完整路径
-	savedFilePath, err := uploadFile.Save(saveDir, false)
+	// 保存文件；上传文件的 Save 方法返回的是文件名（basename），需与目录拼成完整路径
+	savedName, err := uploadFile.Save(fileDir, false)
 	if err != nil {
 		return nil, gerror.Wrapf(err, "保存文件失败")
 	}
+	savedFilePath := filepath.Join(fileDir, savedName)
 
 	// 获取文件信息
 	fileInfo, err := os.Stat(savedFilePath)

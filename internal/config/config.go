@@ -48,6 +48,11 @@ const (
 	EnvMysqlDangerousStatementMode = "MYSQL_DANGEROUS_STATEMENT_MODE"
 )
 
+// 知识库文档目录相关的环境变量名。
+const (
+	EnvFileDir = "FILE_DIR"
+)
+
 // Config 应用总配置。
 type Config struct {
 	Milvus        MilvusConfig        `yaml:"milvus"`
@@ -55,6 +60,7 @@ type Config struct {
 	Mysql         MysqlConfig         `yaml:"mysql"`
 	Prometheus    PrometheusConfig    `yaml:"prometheus"`
 	McpURL        string              `yaml:"mcp_url"`
+	FileDir       string              `yaml:"file_dir"`
 }
 
 // PrometheusConfig Prometheus 告警工具配置，对应配置文件中的 prometheus 段。
@@ -125,7 +131,8 @@ func defaultConfig() *Config {
 			// 挂起会变成无人处理的打断信号。
 			DangerousStatementMode: "deny",
 		},
-		McpURL: "http://localhost:3000/sse",
+		McpURL:  "http://localhost:3000/sse",
+		FileDir: common.FileDir,
 		Prometheus: PrometheusConfig{
 			BaseURL: "http://127.0.0.1:9090",
 		},
@@ -195,6 +202,7 @@ func applyEnv(c *Config) {
 
 		EnvMysqlDangerousStatementMode: &c.Mysql.DangerousStatementMode,
 		EnvPrometheusBaseURL:           &c.Prometheus.BaseURL,
+		EnvFileDir:                     &c.FileDir,
 	}
 	for key, target := range overrides {
 		if v := os.Getenv(key); v != "" {
@@ -229,6 +237,9 @@ func fillDefaults(c *Config) {
 	}
 	if c.Prometheus.BaseURL == "" {
 		c.Prometheus.BaseURL = def.Prometheus.BaseURL
+	}
+	if c.FileDir == "" {
+		c.FileDir = def.FileDir
 	}
 }
 
