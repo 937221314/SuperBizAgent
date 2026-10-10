@@ -59,6 +59,12 @@ type Message struct {
 
 	// Data 事件数据，换行会被拆成多个 "data:" 字段。
 	Data string
+
+	// Close 为 true 时，Run 写完本帧后退出并注销客户端，从而结束 HTTP 响应。
+	// 用于 one-shot 流（如按次提问的对话接口）下发 done/error 后主动收流；
+	// 不能由 Send 侧直接 RemoveClient，否则 Run 的 select 可能先选中 done
+	// 而丢掉尚未写出的末帧。
+	Close bool
 }
 
 // Client 表示一条已建立的 SSE 连接，字段不导出以避免绕过单写者约定。
@@ -200,8 +206,9 @@ func (s *Server) Create(ctx context.Context, r *ghttp.Request) (*Client, error) 
 	return client, nil
 }
 
-// Run 阻塞消费消息并写入响应，直到连接断开、ctx 取消或被 RemoveClient 关闭，
-// 返回时自动注销客户端。必须在 Create 成功后的同一个 handler goroutine 中调用。
+// Run 阻塞消费消息并写入响应，直到连接断开、ctx 取消、被 RemoveClient 关闭，
+// 或写出一条 Close 标记的消息（用于 one-shot 流收尾）后返回，返回时自动注销客户端。
+// 必须在 Create 成功后的同一个 handler goroutine 中调用。
 func (s *Server) Run(ctx context.Context, client *Client) {
 	if client == nil {
 		return
@@ -223,6 +230,9 @@ func (s *Server) Run(ctx context.Context, client *Client) {
 			return
 		case msg := <-client.messageChan:
 			client.writeEvent(msg)
+			if msg.Close {
+				return
+			}
 		case <-heartbeat.C:
 			client.writeComment(heartbeatComment)
 		}

@@ -262,12 +262,15 @@ export class SuperBizAgentApp {
         case 'message':
           state.text += event.data;
           this.messageList.updateStreaming(placeholder, state.text);
-          break;
+          return;
         case 'error':
+          // error 与 done 都是业务级结束信号，收到即停止消费并关闭连接。
           state.error = event.data;
-          break;
+          return false;
+        case 'done':
+          return false;
         default:
-          break;
+          return;
       }
     });
 

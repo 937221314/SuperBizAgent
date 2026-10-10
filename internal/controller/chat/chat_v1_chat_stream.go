@@ -46,13 +46,13 @@ func (c *ControllerV1) streamToClient(ctx context.Context, clientID, id, msg str
 
 	runner, err := chat_pipeline.BuildEinoAgent(ctx)
 	if err != nil {
-		_ = c.server.Send(clientID, sse.Message{Event: "error", Data: fmt.Sprintf("构建智能体失败: %v", err)})
+		_ = c.server.Send(clientID, sse.Message{Event: "error", Data: fmt.Sprintf("构建智能体失败: %v", err), Close: true})
 		return
 	}
 
 	sr, err := runner.Stream(ctx, &userMessage, compose.WithCallbacks(logcallback.New(nil)))
 	if err != nil {
-		_ = c.server.Send(clientID, sse.Message{Event: "error", Data: fmt.Sprintf("LLM 回复失败: %v", err)})
+		_ = c.server.Send(clientID, sse.Message{Event: "error", Data: fmt.Sprintf("LLM 回复失败: %v", err), Close: true})
 		return
 	}
 	defer sr.Close()
@@ -70,11 +70,11 @@ func (c *ControllerV1) streamToClient(ctx context.Context, clientID, id, msg str
 	for {
 		chunk, err := sr.Recv()
 		if errors.Is(err, io.EOF) {
-			_ = c.server.Send(clientID, sse.Message{Event: "done", Data: "流完毕"})
+			_ = c.server.Send(clientID, sse.Message{Event: "done", Data: "流完毕", Close: true})
 			return
 		}
 		if err != nil {
-			_ = c.server.Send(clientID, sse.Message{Event: "error", Data: err.Error()})
+			_ = c.server.Send(clientID, sse.Message{Event: "error", Data: err.Error(), Close: true})
 			return
 		}
 		fullResponse.WriteString(chunk.Content)
