@@ -82,3 +82,11 @@ mysql:
 # file_dir
 # 知识库文档存放目录，上传的知识库文件保存在此，也是索引时的读取目录
 file_dir: "./docs"
+
+# knowledge_chunk
+# 知识库文档切分参数（transformer）。Markdown 按标题切分，其余格式按此参数递归切分。
+knowledge_chunk:
+  # 每个分片的最大字符数（按 rune 计，中文按字符）
+  chunk_size: 1000
+  # 相邻分片的重叠字符数，需大于等于 0 且小于 chunk_size
+  overlap_size: 200

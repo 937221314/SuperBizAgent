@@ -80,15 +80,10 @@ func buildIntoIndex(ctx context.Context, path string) error {
 	if err != nil {
 		return err
 	}
-	// 删除 biz 集合数据 metadata 中 _source 相同的数据
-	loader, err := loader2.NewFileLoader(ctx)
-	if err != nil {
-		return fmt.Errorf("创建加载器失败: %w", err)
-	}
-
-	docs, err := loader.Load(ctx, document.Source{URI: path})
-	if err != nil {
-		return fmt.Errorf("加载文件失败: %w", err)
+	// 删除 biz 集合数据 metadata 中 _source 相同的数据。
+	// _source 由 FileLoader 写入，值即文件路径本身，无需先加载文件（避免 PDF/DOCX 被解析两遍）。
+	if !loader2.IsSupportedDoc(path) {
+		return fmt.Errorf("不支持的文档格式: %s", filepath.Ext(path))
 	}
 
 	cli, err := client.NewMilvusClient(ctx)
@@ -97,7 +92,7 @@ func buildIntoIndex(ctx context.Context, path string) error {
 	}
 
 	// 查询所有 metadata 中 _source 相同的数据并删除
-	expr := fmt.Sprintf(`metadata["_source"] == %q`, docs[0].MetaData["_source"])
+	expr := fmt.Sprintf(`metadata["_source"] == %q`, path)
 	queryResult, err := cli.Query(ctx, milvusclient.NewQueryOption(common.MilvusCollectionName).WithFilter(expr).WithOutputFields("id"))
 	if err != nil {
 		return fmt.Errorf("向量查询失败: %w", err)
@@ -125,7 +120,7 @@ func buildIntoIndex(ctx context.Context, path string) error {
 			if err != nil {
 				return fmt.Errorf("向量删除失败: %w", err)
 			}
-			g.Log().Infof(ctx, "[info] 删除 %d 条来自 %s 的记录\n", len(idsToDelete), docs[0].MetaData["_source"])
+			g.Log().Infof(ctx, "[info] 删除 %d 条来自 %s 的记录\n", len(idsToDelete), path)
 		}
 	}
 

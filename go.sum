@@ -54,8 +54,14 @@ github.com/cloudwego/eino-examples v0.0.0-20260929012518-a6dbd95ab51f h1:f1qAHwn
 github.com/cloudwego/eino-examples v0.0.0-20260929012518-a6dbd95ab51f/go.mod h1:3t8AJLZIrLpe1rUgDGd3Zc58/qpTXgnPSPD8R4bkeyI=
 github.com/cloudwego/eino-ext/components/document/loader/file v0.0.0-20260916065400-2607f61e807f h1:EySjENk2NVX5HH/wqTMpBOCpTdbHl1vfOXB4uGVntG0=
 github.com/cloudwego/eino-ext/components/document/loader/file v0.0.0-20260916065400-2607f61e807f/go.mod h1:HnxTQxmhuev6zaBl92EHUy/vEDWCuoE/OE4cTiF5JCg=
+github.com/cloudwego/eino-ext/components/document/parser/docx v0.0.0-20260916065400-2607f61e807f h1:UY/VQXFSSPkOhPKVV8XiS+sHs/BFFGrBPs3wD5ggGlo=
+github.com/cloudwego/eino-ext/components/document/parser/docx v0.0.0-20260916065400-2607f61e807f/go.mod h1:7Nfu+tf9OkdI8Fy5VRi9Xap13OGVV8SXlpj+GHbaWQ8=
+github.com/cloudwego/eino-ext/components/document/parser/pdf v0.0.0-20260916065400-2607f61e807f h1:uF/S+jDq3drLRXEFa6Ze4ldsT3AVMfS9IahLQD2rv/M=
+github.com/cloudwego/eino-ext/components/document/parser/pdf v0.0.0-20260916065400-2607f61e807f/go.mod h1:nI+RfRSJXhQbMi0Sm21OuJFZ9sOqlNGXh/MiwOLbjXM=
 github.com/cloudwego/eino-ext/components/document/transformer/splitter/markdown v0.0.0-20260916065400-2607f61e807f h1:PKjVq1tFg980sJ0tTbyBSgCdCuQFNojT9L59WZYRM7g=
 github.com/cloudwego/eino-ext/components/document/transformer/splitter/markdown v0.0.0-20260916065400-2607f61e807f/go.mod h1:KVOVct4e2BQ7epDONW2QE1qU5+ccoh91FzJTs9vIJj0=
+github.com/cloudwego/eino-ext/components/document/transformer/splitter/recursive v0.0.0-20260916065400-2607f61e807f h1:FaMFUOQhr12TZyXotY6+jZA/670G2o0ZktcLDGqzuDA=
+github.com/cloudwego/eino-ext/components/document/transformer/splitter/recursive v0.0.0-20260916065400-2607f61e807f/go.mod h1:9R0RQrQSpg1JaNnRtw7+RfRAAv0HgdE348YnrlZ6coo=
 github.com/cloudwego/eino-ext/components/embedding/openai v0.0.0-20260916065400-2607f61e807f h1:/Pmk/9GMdv+fMGJEJJm7eC5v+2eGh3qSqqJvJfp+zwA=
 github.com/cloudwego/eino-ext/components/embedding/openai v0.0.0-20260916065400-2607f61e807f/go.mod h1:zyPrZT2bO6LyRJgVksQowR18jVgyLSvqK93hnO53/Lc=
 github.com/cloudwego/eino-ext/components/indexer/milvus2 v0.0.0-20260909094858-6fe16d48b736 h1:8EdKfOSudWM6OgQzGanYIqaey98AcTjZ0bC+qp50QmI=
@@ -101,6 +107,8 @@ github.com/docker/go-units v0.5.0/go.mod h1:fgPhTUdO+D/Jk86RDLlptpiXQzgHJF7gydDD
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
+github.com/eino-contrib/docx2md v0.0.1 h1:Clz0sF8jiQRYAIZAUTuTAjh0vF/1KqHQqsMha1ZX4q4=
+github.com/eino-contrib/docx2md v0.0.1/go.mod h1:b1dupA9cF5yExHjVMCcP6feyE6mwZjsY7Cc9ESO5Y14=
 github.com/eino-contrib/jsonschema v1.0.3 h1:2Kfsm1xlMV0ssY2nuxshS4AwbLFuqmPmzIjLVJ1Fsp0=
 github.com/eino-contrib/jsonschema v1.0.3/go.mod h1:cpnX4SyKjWjGC7iN2EbhxaTdLqGjCi0e9DxpLYxddD4=
 github.com/eknkc/amber v0.0.0-20171010120322-cdade1c07385/go.mod h1:0vRUJqYpeSZifjYj7uP3BG/gKcuzL9xWVV/Y+cK33KM=
@@ -282,6 +290,8 @@ github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0
 github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
 github.com/labstack/echo/v4 v4.5.0/go.mod h1:czIriw4a0C1dFun+ObrXp7ok03xON0N1awStJ6ArI7Y=
 github.com/labstack/gommon v0.3.0/go.mod h1:MULnywXg0yavhxWKc+lOruYdAhDwPK9wf0OL7NoOu+k=
+github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728 h1:QwWKgMY28TAXaDl+ExRDqGQltzXqN/xypdKP86niVn8=
+github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728/go.mod h1:1fEHWurg7pvf5SG6XNE5Q8UZmOwex51Mkx3SLhrW5B4=
 github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 h1:6E+4a0GO5zZEnZ81pIr0yLvtUWk2if982qA3F3QD6H4=
 github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0/go.mod h1:zJYVVT2jmtg6P3p1VtQj7WsuWi/y4VnjVBn7F8KPB3I=
 github.com/magiconair/properties v1.8.0/go.mod h1:PppfXfuXeibc/6YijjN8zIbojt8czPbwD3XqdrwzmxQ=

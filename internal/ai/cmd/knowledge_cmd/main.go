@@ -40,28 +40,20 @@ func main() {
 			return nil
 		}
 
-		if !strings.HasSuffix(path, ".md") {
-			fmt.Printf("[skip] 不是一个 markdonw 文件: %s\n", path)
+		if !loader2.IsSupportedDoc(path) {
+			fmt.Printf("[skip] 不支持的文档格式: %s\n", path)
 			return nil
 		}
 
 		fmt.Printf("[start] 索引文件: %s\n", path)
-		// 删除 biz 数据 metadata 中 _source 一样的数据
-		loader, err := loader2.NewFileLoader(ctx)
-		if err != nil {
-			return fmt.Errorf("创建加载器失败: %w", err)
-		}
-
-		docs, err := loader.Load(ctx, document.Source{URI: path})
-		if err != nil {
-			return fmt.Errorf("加载文件失败: %w", err)
-		}
+		// 删除 biz 数据 metadata 中 _source 一样的数据。
+		// _source 即文件路径本身，无需先加载文件（避免 PDF/DOCX 被解析两遍）。
 		cli, err := client.NewMilvusClient(ctx)
 		if err != nil {
 			return fmt.Errorf("创建 Milvus 客户端失败: %w", err)
 		}
 		// 查询所有 metadata 中 _source 一样的数据并删除
-		expr := fmt.Sprintf(`metadata["_source"] == %q`, docs[0].MetaData["_source"])
+		expr := fmt.Sprintf(`metadata["_source"] == %q`, path)
 
 		queryResult, err := cli.Query(ctx, milvusclient.NewQueryOption(common.MilvusCollectionName).WithFilter(expr).WithOutputFields("id"))
 		if err != nil {
@@ -89,7 +81,7 @@ func main() {
 				if err != nil {
 					return fmt.Errorf("向量删除失败: %w", err)
 				}
-				g.Log().Infof(ctx, "[info] 删除 %d 条来自 %s 的记录\n", len(idsToDelete), docs[0].MetaData["_source"])
+				g.Log().Infof(ctx, "[info] 删除 %d 条来自 %s 的记录\n", len(idsToDelete), path)
 			}
 
 		}
