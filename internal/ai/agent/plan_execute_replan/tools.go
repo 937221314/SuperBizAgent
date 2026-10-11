@@ -8,16 +8,21 @@ import (
 	"SuperBizAgent/internal/ai/tools/prometheus"
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/cloudwego/eino/components/tool"
 )
 
-// getBaseTools 技能工具列表
+// getBaseTools 技能工具列表。
+// 日志 MCP 工具是可选依赖：MCP 服务不可用时仅记录日志并跳过，不阻塞执行者构建。
 func getBaseTools(ctx context.Context) ([]tool.BaseTool, error) {
-	// 提供工具信息
+	toolList := make([]tool.BaseTool, 0, 6)
+
 	mcpTools, err := tools.GetLogMcpTool(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("获取Mcp工具失败: %v", err)
+		log.Printf("[plan_execute_replan] 日志 MCP 工具不可用，已跳过: %v", err)
+	} else {
+		toolList = append(toolList, mcpTools...)
 	}
 
 	currentTimeTool, err := currenttime.NewGetCurrentTimeTool(ctx)
@@ -45,11 +50,6 @@ func getBaseTools(ctx context.Context) ([]tool.BaseTool, error) {
 		return nil, fmt.Errorf("创建查询 prometheus 告警工具失败: %v", err)
 	}
 
-	mcpTools = append(mcpTools, currentTimeTool)
-	mcpTools = append(mcpTools, mysqlQueryTool)
-	mcpTools = append(mcpTools, mysqlExecTool)
-	mcpTools = append(mcpTools, docSearchTool)
-	mcpTools = append(mcpTools, prometheusTool)
-
-	return mcpTools, nil
+	toolList = append(toolList, currentTimeTool, mysqlQueryTool, mysqlExecTool, docSearchTool, prometheusTool)
+	return toolList, nil
 }

@@ -12,7 +12,8 @@ SuperBizAgent 是一个使用 Go 语言开发的业务代理服务。当前已�
   入库流程与切分参数见 `dev-docs/knowledge-index.md`；
 - **统一配置加载**：`internal/config` 按「环境变量 > 配置文件 > 代码默认值」合并配置；
 - **AI 工具集**：`internal/ai/tools` 下提供 MySQL 读写、内部文档检索、当前时间与 Prometheus 告警查询工具；
-  工具已具备构造与单测，尚未挂载到 ToolsNode（见 `dev-docs/todo.md`）；
+  已挂载到 ReAct（`chat_pipeline`）与 plan-execute-replan（`plan_execute_replan`）两个 Agent，
+  日志 MCP 工具为可选依赖（不可用时告警并跳过）；
 - **聊天 HTTP 接口**：`api/chat` 与 `internal/controller/chat` 定义对话、SSE 流式、文件上传与 AI 运维接口；
   `main.go` 已装配 HTTP 服务并监听 `:6872`，响应统一由 `utility/middleware` 包裹为 `{code,message,data}`；
 - **前端界面**：`SuperBizAgentFrontend/` 提供基于 Vite + TypeScript 的对话界面（快速/流式对话、历史记录、文件上传、AI Ops）；

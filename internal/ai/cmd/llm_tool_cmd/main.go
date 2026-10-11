@@ -29,10 +29,10 @@ func main() {
 	if err != nil {
 		fail("创建模型实例失败: %v", err)
 	}
-	// 获取工具信息
+	// 获取工具信息；日志 MCP 工具为可选依赖，不可用时仅告警跳过。
 	toolList, err := glocaltools.GetLogMcpTool(ctx)
 	if err != nil {
-		fail("获取MCP日志工具失败: %v", err)
+		fmt.Fprintf(os.Stderr, "警告：MCP 日志工具不可用，已跳过: %v\n", err)
 	}
 	currentTimeTool, err := currenttime.NewGetCurrentTimeTool(ctx)
 	if err != nil {
