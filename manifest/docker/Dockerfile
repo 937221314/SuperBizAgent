@@ -57,6 +57,9 @@ COPY manifest/config/config.example.yaml /app/manifest/config/config.yaml
 # 知识库目录：配置项 file_dir 默认为 ./docs/，相对 WORKDIR 解析
 COPY --chown=app:app docs/ /app/docs/
 
+# 日志目录：logger.path=./logs 相对 WORKDIR，运行用户 app 需可写
+RUN mkdir -p /app/logs && chown app:app /app/logs
+
 USER app
 
 # 对应 config.example.yaml 的 server.address；HTTP 服务与这里、compose 的 ports 需同步
