@@ -20,9 +20,25 @@ server:
   swaggerPath: "/swagger"
 
 # logger
+# GoFrame 日志：终端 + 文件；按大小切割，备份默认保留 7 天。
+# 注意：rotateSize 与 rotateBackupLimit 必须 > 0，否则 gf 会在切割时直接删除当前文件、
+# 且不会启动备份过期检查（见 dev-docs/logging.md）。
 logger:
   level: "all"
   stdout: true
+  # 日志目录与文件名（相对进程工作目录）
+  path: "./logs"
+  file: "app.log"
+  # 单文件超过该大小即切割（支持 B/KB/MB/GB）
+  rotateSize: "100MB"
+  # 切割备份保留份数
+  rotateBackupLimit: 30
+  # 备份最大保存时间（7 天），超期由后台检查删除
+  rotateBackupExpire: "168h"
+  # 备份过期检查周期
+  rotateCheckInterval: "1h"
+  # 备份是否 gzip（0 不压缩，>0 压缩）
+  rotateBackupCompress: 1
 
 # dashscope_chat_plus
 dashscope_chat_plus:

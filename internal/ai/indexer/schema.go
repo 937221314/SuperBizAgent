@@ -3,11 +3,11 @@ package indexer
 import (
 	"context"
 	"fmt"
-	"log"
 	"sort"
 	"strconv"
 	"strings"
 
+	"github.com/gogf/gf/v2/frame/g"
 	"github.com/milvus-io/milvus/client/v2/entity"
 	"github.com/milvus-io/milvus/client/v2/milvusclient"
 )
@@ -61,7 +61,7 @@ func ensureCollectionSchema(ctx context.Context, cli *milvusclient.Client, colle
 	}
 
 	if recreateOnMismatch {
-		log.Printf("[indexer] 集合 %s 的 schema 与代码不一致（%s），按配置删除重建",
+		g.Log().Warningf(ctx, "[indexer] 集合 %s 的 schema 与代码不一致（%s），按配置删除重建",
 			collection, strings.Join(diffs, "；"))
 		if err := cli.DropCollection(ctx, milvusclient.NewDropCollectionOption(collection)); err != nil {
 			return fmt.Errorf("删除集合 %s 失败: %w", collection, err)

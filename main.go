@@ -36,6 +36,16 @@ func main() {
 	})
 
 	s := g.Server()
+	// HTTP 访问/错误日志复用应用日志，写入同一文件；须在 Run 之前设置，运行期不可改。
+	if err := s.SetConfigWithMap(map[string]any{
+		"accessLogPattern": g.Log().GetConfig().File,
+		"errorLogPattern":  g.Log().GetConfig().File,
+	}); err != nil {
+		g.Log().Warningf(ctx, "设置访问/错误日志文件失败，将使用默认 pattern: %v", err)
+	}
+	s.SetLogger(g.Log())
+	s.SetAccessLogEnabled(true)
+	s.SetErrorLogEnabled(true)
 	s.Group("/api", func(group *ghttp.RouterGroup) {
 		group.Middleware(middleware.CORSMiddleware)
 		group.Middleware(middleware.ResponseMiddleware)

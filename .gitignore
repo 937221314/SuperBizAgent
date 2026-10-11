@@ -50,19 +50,19 @@ Thumbs.db
 # 本地配置文件（含密码等敏感信息），示例见 manifest/config/config.example.yaml
 manifest/config/config.yaml
 
-# eino 命令行工具的本地配置（含占位密钥）
-internal/ai/cmd/*/config/config.yaml
+# eino devtools 生成的图可视化 dump（含 UI 坐标，无代码引用）
+cmd/*/workflow.json
+cmd/*/worflow.json
+# 命令行入口的运行期知识库目录（若从命令目录自身启动）
+cmd/*/docs/
 
 # 本地开发文档（不纳入版本控制）
 dev-docs/*
 
-# 知识库文档目录，由 utility/common.FileDir 指向，内容为运行期数据
+# 知识库文档目录，由配置项 file_dir 指向，内容为运行期数据
 docs/*
 # 随仓库提供的初始化知识库文档，便于新环境上手
 !docs/告警处理手册.md
-
-# 知识库命令的测试文档（运行期数据）
-internal/ai/cmd/knowledge_cmd/docs/
 
 # Logs
 *.log

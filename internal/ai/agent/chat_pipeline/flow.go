@@ -2,7 +2,6 @@ package chat_pipeline
 
 import (
 	"context"
-	"log"
 
 	"SuperBizAgent/internal/ai/tools"
 	"SuperBizAgent/internal/ai/tools/currenttime"
@@ -13,6 +12,7 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/flow/agent/react"
+	"github.com/gogf/gf/v2/frame/g"
 )
 
 // newReactAgentLambda component initialization function of node 'ReactAgent' in graph 'EinoAgent'
@@ -47,7 +47,7 @@ func newAgentTools(ctx context.Context) ([]tool.BaseTool, error) {
 	toolList := make([]tool.BaseTool, 0, 6)
 
 	if mcpTools, err := tools.GetLogMcpTool(ctx); err != nil {
-		log.Printf("[chat_pipeline] 日志 MCP 工具不可用，已跳过: %v", err)
+		g.Log().Warningf(ctx, "[chat_pipeline] 日志 MCP 工具不可用，已跳过: %v", err)
 	} else {
 		toolList = append(toolList, mcpTools...)
 	}

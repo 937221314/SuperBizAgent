@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -323,7 +322,7 @@ func (s *Server) handleSlowClient(clientID string) {
 	total := s.dropped.Add(1)
 	if s.slowClientPolicy == SlowClientDisconnect {
 		s.RemoveClient(clientID)
-		log.Printf("[sse] 慢客户端已断开 client_id=%s 累计丢弃=%d", clientID, total)
+		g.Log().Warningf(context.Background(), "[sse] 慢客户端已断开 client_id=%s 累计丢弃=%d", clientID, total)
 		return
 	}
 	s.logDropped(clientID, total)
@@ -339,7 +338,7 @@ func (s *Server) logDropped(clientID string, total int64) {
 	s.lastDropLog = time.Now()
 	s.dropLogMu.Unlock()
 
-	log.Printf("[sse] 消息被丢弃 client_id=%s 累计丢弃=%d（缓冲区满）", clientID, total)
+	g.Log().Warningf(context.Background(), "[sse] 消息被丢弃 client_id=%s 累计丢弃=%d（缓冲区满）", clientID, total)
 }
 
 // Broadcast 向所有在线客户端投递同一条消息，返回成功数量；单个客户端失败不影响其它客户端。

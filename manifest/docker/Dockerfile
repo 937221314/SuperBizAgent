@@ -10,7 +10,7 @@
 #   docker build -f manifest/docker/Dockerfile -t superbizagent:dev .
 #
 # 国内环境换源：--build-arg GOPROXY=https://goproxy.cn,direct
-# 当前 main.go 是占位实现，入口包就绪后改：--build-arg PKG=./internal/ai/cmd/xxx_cmd
+# 命令行入口在 cmd/<name>：如需把某个调试命令打进镜像，用 --build-arg PKG=./cmd/xxx_cmd
 
 # ---------- 构建阶段 ----------
 FROM golang:1.27.1-alpine AS builder
@@ -54,8 +54,11 @@ COPY --from=builder /out/app /usr/local/bin/SuperBizAgent
 # TEXT_EMBEDDING_API_KEY ...）覆盖，优先级高于配置文件；也可用 volumes 挂载宿主配置。
 COPY manifest/config/config.example.yaml /app/manifest/config/config.yaml
 
-# 知识库目录：utility/common.FileDir 固定为 ./docs/，相对 WORKDIR 解析
+# 知识库目录：配置项 file_dir 默认为 ./docs/，相对 WORKDIR 解析
 COPY --chown=app:app docs/ /app/docs/
+
+# 日志目录：logger.path=./logs 相对 WORKDIR，运行用户 app 需可写
+RUN mkdir -p /app/logs && chown app:app /app/logs
 
 USER app
 

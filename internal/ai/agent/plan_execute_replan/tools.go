@@ -8,9 +8,9 @@ import (
 	"SuperBizAgent/internal/ai/tools/prometheus"
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/cloudwego/eino/components/tool"
+	"github.com/gogf/gf/v2/frame/g"
 )
 
 // getBaseTools 技能工具列表。
@@ -20,7 +20,7 @@ func getBaseTools(ctx context.Context) ([]tool.BaseTool, error) {
 
 	mcpTools, err := tools.GetLogMcpTool(ctx)
 	if err != nil {
-		log.Printf("[plan_execute_replan] 日志 MCP 工具不可用，已跳过: %v", err)
+		g.Log().Warningf(ctx, "[plan_execute_replan] 日志 MCP 工具不可用，已跳过: %v", err)
 	} else {
 		toolList = append(toolList, mcpTools...)
 	}

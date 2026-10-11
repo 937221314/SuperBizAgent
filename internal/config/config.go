@@ -7,7 +7,6 @@ package config
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"sync"
@@ -17,6 +16,7 @@ import (
 	"SuperBizAgent/utility/common"
 	"SuperBizAgent/utility/mem"
 
+	"github.com/gogf/gf/v2/frame/g"
 	"gopkg.in/yaml.v3"
 )
 
@@ -337,10 +337,10 @@ func StartAutoReload(ctx context.Context, interval time.Duration, onReload func(
 			case <-ticker.C:
 				c, err := Reload()
 				if err != nil {
-					log.Printf("[config] 热更新失败，继续使用旧配置: %v", err)
+					g.Log().Warningf(ctx, "[config] 热更新失败，继续使用旧配置: %v", err)
 					continue
 				}
-				log.Printf("[config] 配置已热更新")
+				g.Log().Infof(ctx, "[config] 配置已热更新")
 				if onReload != nil {
 					onReload(c)
 				}

@@ -104,21 +104,23 @@ SuperBizAgent/
 ├── api/                # API 接口定义
 │   └── chat/           # 聊天相关接口
 │       └── v1/         # 请求 / 响应结构定义
+├── cmd/                # 命令行入口（每个命令一个 main 包）
+│   ├── ai_ops_cmd/     # AI 运维监测智能体
+│   ├── chat_cmd/       # 对话调试命令
+│   ├── knowledge_cmd/  # 知识库入库命令
+│   ├── llm_tool_cmd/   # 工具绑定校验命令
+│   └── recall_cmd/     # 知识库召回检索命令
 ├── dev-docs/           # 开发文档（本地维护，不纳入版本控制）
 ├── docs/               # 知识库文档目录（内置初始化文档 告警处理手册.md，其余为运行期数据）
-├── hack/               # 构建、脚本等工具
 ├── internal/           # 内部实现（不对外暴露）
 │   ├── ai/             # AI 组件
 │   │   ├── agent/      # 多智能体与流水线编排
 │   │   │   ├── chat_pipeline/           # 对话流水线（RAG + ReAct）
 │   │   │   ├── knowledge_index_pipeline/ # 知识库入库流水线
 │   │   │   └── plan_execute_replan/     # plan-execute-replan 多智能体
-│   │   ├── cmd/        # 命令行调试入口
-│   │   │   ├── chat_cmd/      # 对话调试命令
-│   │   │   └── knowledge_cmd/ # 知识库入库命令
 │   │   ├── embedder/   # 文本向量模型
-│   │   ├── indexer/    # Milvus 索引器
-│   │   ├── loader/     # 文档加载器
+│   │   ├── indexer/    # Milvus 索引器（含集合 schema 校验）
+│   │   ├── loader/     # 文档加载/解析（编码探测）
 │   │   ├── models/     # 模型构造器（OpenAI 兼容协议）
 │   │   ├── retriever/  # Milvus 检索器
 │   │   └── tools/      # AI 工具（每个工具各自成子包）
@@ -133,10 +135,11 @@ SuperBizAgent/
 │   └── logic/          # 业务逻辑
 │       └── sse/        # SSE 流式处理
 ├── manifest/           # 配置与清单
-│   └── config/         # 配置示例与本地配置
+│   ├── config/         # 配置示例与本地配置
+│   └── docker/         # 应用镜像与 Milvus 依赖 compose
 ├── utility/            # 通用工具
 │   ├── client/         # Milvus 客户端与数据库初始化
-│   ├── common/         # 公共常量与路径
+│   ├── common/         # 公共常量（Milvus 集合名、知识库目录默认值）
 │   ├── logcallback/    # eino 日志回调
 │   ├── mem/            # 会话记忆
 │   └── middleware/     # HTTP 中间件

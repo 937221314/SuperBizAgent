@@ -6,13 +6,13 @@ package mem
 
 import (
 	"context"
-	"log"
 	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/cloudwego/eino/schema"
+	"github.com/gogf/gf/v2/frame/g"
 )
 
 const (
@@ -172,7 +172,7 @@ func StartSessionGC(ctx context.Context, ttl, interval time.Duration) {
 				return
 			case <-ticker.C:
 				if n := evictIdle(ttl, time.Now()); n > 0 {
-					log.Printf("[mem] 回收空闲会话 %d 个（TTL %s）", n, ttl)
+					g.Log().Infof(ctx, "[mem] 回收空闲会话 %d 个（TTL %s）", n, ttl)
 				}
 			}
 		}
