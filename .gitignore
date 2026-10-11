@@ -58,7 +58,8 @@ dev-docs/*
 
 # 知识库文档目录，由 utility/common.FileDir 指向，内容为运行期数据
 docs/*
-!docs/.gitkeep
+# 随仓库提供的初始化知识库文档，便于新环境上手
+!docs/告警处理手册.md
 
 # 知识库命令的测试文档（运行期数据）
 internal/ai/cmd/knowledge_cmd/docs/

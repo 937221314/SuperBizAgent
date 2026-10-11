@@ -104,7 +104,7 @@ SuperBizAgent/
 │   └── chat/           # 聊天相关接口
 │       └── v1/         # 请求 / 响应结构定义
 ├── dev-docs/           # 开发文档（本地维护，不纳入版本控制）
-├── docs/               # 知识库文档目录（运行期数据，不纳入版本控制）
+├── docs/               # 知识库文档目录（内置初始化文档 告警处理手册.md，其余为运行期数据）
 ├── hack/               # 构建、脚本等工具
 ├── internal/           # 内部实现（不对外暴露）
 │   ├── ai/             # AI 组件
@@ -165,8 +165,8 @@ SuperBizAgent/
 - 提交前确保 `go build ./...` 通过，并执行 `make check`（fmt/vet/lint/test）。
   改动前端时另需 `make frontend-typecheck`（必要时 `make frontend-build`）。
 - 提交信息使用语义化前缀（`feat:`、`fix:`、`chore:`、`docs:` 等）。
-- `dev-docs/` 存放开发文档，`docs/` 被程序用作知识库文档目录，两者内容均不纳入版本控制
-  （`docs/` 仅保留 `.gitkeep` 占位）。
+- `dev-docs/` 存放开发文档，不纳入版本控制；`docs/` 被程序用作知识库文档目录，
+  默认内容不纳入版本控制，仅随仓库内置 `docs/告警处理手册.md` 作为初始化知识库文档。
 
 ## 许可证
 
