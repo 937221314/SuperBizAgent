@@ -1,8 +1,10 @@
 package config
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
@@ -166,5 +168,114 @@ func TestLoadDangerousStatementMode(t *testing.T) {
 				t.Errorf("dangerous_statement_mode = %q，期望 %q", got.Mysql.DangerousStatementMode, c.want)
 			}
 		})
+	}
+}
+
+// resetConfigForTest 重置 Get/Reload 的包级缓存，仅用于测试隔离。
+func resetConfigForTest() {
+	initOnce = sync.Once{}
+	initErr = nil
+	cfgPtr.Store(nil)
+}
+
+// TestReload 校验热更新读取新配置，失败时保留旧配置。
+func TestReload(t *testing.T) {
+	resetConfigForTest()
+	t.Cleanup(resetConfigForTest)
+
+	path := writeConfigFile(t, "memory:\n  max_window_size: 4\n")
+	t.Setenv("CONFIG_PATH", path)
+
+	got, err := Get()
+	if err != nil {
+		t.Fatalf("首次加载失败: %v", err)
+	}
+	if got.Memory.MaxWindowSize != 4 {
+		t.Fatalf("首次加载 max_window_size = %d，期望 4", got.Memory.MaxWindowSize)
+	}
+
+	if err := os.WriteFile(path, []byte("memory:\n  max_window_size: 12\n"), 0o600); err != nil {
+		t.Fatalf("改写配置文件失败: %v", err)
+	}
+	updated, err := Reload()
+	if err != nil {
+		t.Fatalf("Reload 失败: %v", err)
+	}
+	if updated.Memory.MaxWindowSize != 12 {
+		t.Fatalf("Reload 后 max_window_size = %d，期望 12", updated.Memory.MaxWindowSize)
+	}
+	if again, _ := Get(); again == nil || again.Memory.MaxWindowSize != 12 {
+		t.Fatal("Get 未看到热更新后的配置")
+	}
+
+	// 非法配置：Reload 失败，且保留旧配置。
+	if err := os.WriteFile(path, []byte("milvus:\n  address: \"\"\n"), 0o600); err != nil {
+		t.Fatalf("改写配置文件失败: %v", err)
+	}
+	if _, err := Reload(); err == nil {
+		t.Fatal("非法配置应使 Reload 失败")
+	}
+	if again, _ := Get(); again == nil || again.Memory.MaxWindowSize != 12 {
+		t.Fatal("Reload 失败后应保留旧配置")
+	}
+}
+
+// TestReloadInterval 校验环境变量解析。
+func TestReloadInterval(t *testing.T) {
+	t.Setenv(EnvConfigReloadInterval, "")
+	if d, err := ReloadInterval(); err != nil || d != 0 {
+		t.Fatalf("空值应返回 (0, nil)，实际 (%s, %v)", d, err)
+	}
+
+	t.Setenv(EnvConfigReloadInterval, "30s")
+	if d, err := ReloadInterval(); err != nil || d != 30*time.Second {
+		t.Fatalf("\"30s\" 应解析为 30s，实际 (%s, %v)", d, err)
+	}
+
+	t.Setenv(EnvConfigReloadInterval, "nope")
+	if _, err := ReloadInterval(); err == nil {
+		t.Fatal("非法时长应返回错误")
+	}
+}
+
+// TestStartAutoReload 校验定时重载会调用 onReload，且 ctx 取消后 goroutine 退出。
+func TestStartAutoReload(t *testing.T) {
+	resetConfigForTest()
+	t.Cleanup(resetConfigForTest)
+
+	path := writeConfigFile(t, "memory:\n  max_window_size: 4\n")
+	t.Setenv("CONFIG_PATH", path)
+	if _, err := Get(); err != nil {
+		t.Fatalf("首次加载失败: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("memory:\n  max_window_size: 12\n"), 0o600); err != nil {
+		t.Fatalf("改写配置文件失败: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	got := make(chan int, 1)
+	done := StartAutoReload(ctx, 10*time.Millisecond, func(c *Config) {
+		select {
+		case got <- c.Memory.MaxWindowSize:
+		default:
+		}
+	})
+
+	select {
+	case v := <-got:
+		if v != 12 {
+			t.Fatalf("onReload 收到 max_window_size = %d，期望 12", v)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("自动重载未在预期时间内触发")
+	}
+
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("ctx 取消后自动重载 goroutine 未退出")
 	}
 }

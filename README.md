@@ -152,6 +152,8 @@ SuperBizAgent/
 
 - 配置由 `internal/config` 加载，默认读取 `manifest/config/config.yaml`，可用 `CONFIG_PATH` 指定其它路径。
 - 优先级：**环境变量 > 配置文件 > 代码默认值**；配置文件不存在时使用内置默认值。
+- 配置默认启动时加载并缓存，改配置需重启；设置环境变量 `CONFIG_RELOAD_INTERVAL`（如 `30s`）
+  可开启定时热更新（多数组件每次请求读取配置，重载后即生效）。
 - 示例见 `manifest/config/config.example.yaml`，环境变量与配置项清单详见 `dev-docs/configuration.md`。
 - Milvus 索引参数：`milvus.index.m` / `milvus.index.ef_construction`（HNSW，仅在集合首次创建时生效）。
 - Milvus schema 校验：集合已存在时比对字段与向量维度，不一致默认报错；

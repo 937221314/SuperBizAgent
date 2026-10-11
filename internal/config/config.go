@@ -5,9 +5,12 @@
 package config
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"SuperBizAgent/utility/common"
@@ -142,9 +145,9 @@ type MilvusIndexConfig struct {
 }
 
 var (
-	once    sync.Once
-	cfg     *Config
-	loadErr error
+	initOnce sync.Once
+	initErr  error
+	cfgPtr   atomic.Pointer[Config]
 )
 
 // defaultConfig 返回内置默认配置，避免配置文件缺失时无法启动。
@@ -224,15 +227,86 @@ func Load(path string) (*Config, error) {
 	return c, nil
 }
 
-// Get 返回全局配置，仅在首次调用时加载（并发安全，不支持热更新）。
+// Get 返回全局配置，仅在首次调用时加载（并发安全）。
+// 配置在进程内缓存；运行期热更新见 Reload 与 StartAutoReload。
 func Get() (*Config, error) {
-	once.Do(func() {
-		cfg, loadErr = Load("")
+	initOnce.Do(func() {
+		c, err := Load("")
+		if err != nil {
+			initErr = err
+			return
+		}
+		cfgPtr.Store(c)
 	})
-	if loadErr != nil {
-		return nil, loadErr
+	if initErr != nil {
+		return nil, initErr
 	}
-	return cfg, nil
+	return cfgPtr.Load(), nil
+}
+
+// Reload 重新读取配置文件并原子替换缓存，供热更新使用。
+// 失败时保留原有配置并返回错误，调用方据此告警即可，无需回退。
+func Reload() (*Config, error) {
+	c, err := Load("")
+	if err != nil {
+		return nil, err
+	}
+	cfgPtr.Store(c)
+	return c, nil
+}
+
+// EnvConfigReloadInterval 是定时热更新周期的环境变量名（Go 时长格式，如 30s）。
+const EnvConfigReloadInterval = "CONFIG_RELOAD_INTERVAL"
+
+// ReloadInterval 读取并解析定时热更新周期；未设置或非正时长时返回 0（关闭）。
+func ReloadInterval() (time.Duration, error) {
+	v := os.Getenv(EnvConfigReloadInterval)
+	if v == "" {
+		return 0, nil
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		return 0, fmt.Errorf("环境变量 %s 不是合法时长: %w", EnvConfigReloadInterval, err)
+	}
+	if d < 0 {
+		return 0, nil
+	}
+	return d, nil
+}
+
+// StartAutoReload 按 interval 周期调用 Reload 热更新配置，ctx 取消时退出；
+// interval <= 0 时不启动。onReload 在每次成功重载后调用（可为 nil），
+// 供调用方重新应用启动期一次性设置（如会话窗口大小）；
+// 固定的后台周期（如会话 GC 间隔）无法在运行中变更，需重启。
+// 返回的 channel 在后台 goroutine 退出后关闭，供测试或优雅停机等待。
+func StartAutoReload(ctx context.Context, interval time.Duration, onReload func(*Config)) <-chan struct{} {
+	done := make(chan struct{})
+	if interval <= 0 {
+		close(done)
+		return done
+	}
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				c, err := Reload()
+				if err != nil {
+					log.Printf("[config] 热更新失败，继续使用旧配置: %v", err)
+					continue
+				}
+				log.Printf("[config] 配置已热更新")
+				if onReload != nil {
+					onReload(c)
+				}
+			}
+		}
+	}()
+	return done
 }
 
 // applyEnv 使用环境变量覆盖配置项，空值忽略。

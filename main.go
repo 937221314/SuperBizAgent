@@ -25,6 +25,16 @@ func main() {
 	mem.SetDefaultWindowSize(cfg.Memory.MaxWindowSize)
 	mem.StartSessionGC(ctx, cfg.Memory.SessionTTL, cfg.Memory.CleanupInterval)
 
+	// 配置热更新：设置 CONFIG_RELOAD_INTERVAL（如 30s）后按周期重载配置文件。
+	reloadInterval, err := config.ReloadInterval()
+	if err != nil {
+		g.Log().Warningf(ctx, "解析 %s 失败，已关闭配置热更新: %v", config.EnvConfigReloadInterval, err)
+	}
+	config.StartAutoReload(ctx, reloadInterval, func(c *config.Config) {
+		// 会话窗口在启动时设定，重载后重新应用；GC 周期固定，需重启。
+		mem.SetDefaultWindowSize(c.Memory.MaxWindowSize)
+	})
+
 	s := g.Server()
 	s.Group("/api", func(group *ghttp.RouterGroup) {
 		group.Middleware(middleware.CORSMiddleware)
