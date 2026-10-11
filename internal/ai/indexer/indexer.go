@@ -17,7 +17,7 @@ import (
 )
 
 // NewMilvusIndexer 创建 Milvus 索引器，客户端复用 utility/client 的业务库连接。
-// 集合名、向量维度与 HNSW 索引参数取自 milvus 配置。
+// 集合名、向量维度与 HNSW 索引参数取自 milvus 配置；集合已存在时先校验 schema。
 func NewMilvusIndexer(ctx context.Context) (indexer.Indexer, error) {
 	cli, err := client.NewMilvusClient(ctx)
 	if err != nil {
@@ -27,6 +27,11 @@ func NewMilvusIndexer(ctx context.Context) (indexer.Indexer, error) {
 	cfg, err := config.Get()
 	if err != nil {
 		return nil, fmt.Errorf("加载 Milvus 配置失败: %w", err)
+	}
+
+	// 集合已存在时校验 schema，避免与代码期望不一致却静默沿用。
+	if err := ensureCollectionSchema(ctx, cli, cfg.Milvus.CollectionName, cfg.Milvus.VectorDim, cfg.Milvus.RecreateOnSchemaMismatch); err != nil {
+		return nil, err
 	}
 
 	// 向量模型

@@ -67,6 +67,10 @@ milvus:
     m: 16
     # 建索引时的搜索宽度，取值 8-512
     ef_construction: 200
+  # 集合已存在但 schema 与代码期望不一致时的行为：
+  #   false 直接报错（默认，避免静默沿用错误结构）
+  #   true  删除并重建集合（会丢失集合内全部数据）
+  recreate_on_schema_mismatch: false
 
 # mcp
 mcp_url: "http://localhost:3000/sse"

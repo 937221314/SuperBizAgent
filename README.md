@@ -154,6 +154,8 @@ SuperBizAgent/
 - 优先级：**环境变量 > 配置文件 > 代码默认值**；配置文件不存在时使用内置默认值。
 - 示例见 `manifest/config/config.example.yaml`，环境变量与配置项清单详见 `dev-docs/configuration.md`。
 - Milvus 索引参数：`milvus.index.m` / `milvus.index.ef_construction`（HNSW，仅在集合首次创建时生效）。
+- Milvus schema 校验：集合已存在时比对字段与向量维度，不一致默认报错；
+  `milvus.recreate_on_schema_mismatch: true` 可改为删除重建（会丢失集合内全部数据）。
 - 工具相关配置项：`mysql.dangerous_statement_mode`（`mysql_exec` 遇到 DROP/TRUNCATE 的行为）、
   `prometheus.base_url`（告警查询地址）、`mcp_url`（日志类 MCP 服务地址）。
 - 知识库切分：`knowledge_chunk.chunk_size`（分片最大字符数）、`knowledge_chunk.overlap_size`

@@ -114,6 +114,9 @@ type MilvusConfig struct {
 	VectorDim int64 `yaml:"vector_dim"`
 	// Index 向量索引参数，对应配置文件中的 milvus.index 段
 	Index MilvusIndexConfig `yaml:"index"`
+	// RecreateOnSchemaMismatch 集合已存在但 schema 与代码期望不一致时，是否删除重建。
+	// 默认 false（直接报错）；开启会丢失集合内全部数据。
+	RecreateOnSchemaMismatch bool `yaml:"recreate_on_schema_mismatch"`
 }
 
 // MilvusIndexConfig 向量索引参数，对应配置文件中的 milvus.index 段。

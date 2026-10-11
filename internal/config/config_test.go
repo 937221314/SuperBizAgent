@@ -70,6 +70,25 @@ func TestLoadMilvusIndex(t *testing.T) {
 	}
 }
 
+// TestLoadMilvusRecreateOnSchemaMismatch 校验 milvus.recreate_on_schema_mismatch 的解析。
+func TestLoadMilvusRecreateOnSchemaMismatch(t *testing.T) {
+	got, err := Load(writeConfigFile(t, ""))
+	if err != nil {
+		t.Fatalf("加载配置失败: %v", err)
+	}
+	if got.Milvus.RecreateOnSchemaMismatch {
+		t.Error("未配置时期望默认为 false")
+	}
+
+	got, err = Load(writeConfigFile(t, "milvus:\n  recreate_on_schema_mismatch: true\n"))
+	if err != nil {
+		t.Fatalf("加载配置失败: %v", err)
+	}
+	if !got.Milvus.RecreateOnSchemaMismatch {
+		t.Error("显式配置 true 时期望为 true")
+	}
+}
+
 // TestLoadDangerousStatementMode 校验 mysql.dangerous_statement_mode 的默认值、
 // 显式取值、环境变量覆盖与非法取值拦截。
 func TestLoadDangerousStatementMode(t *testing.T) {
