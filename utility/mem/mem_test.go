@@ -268,3 +268,30 @@ func TestSessionCount(t *testing.T) {
 	}
 	DeleteSimpleMemory(id)
 }
+
+// TestDefaultWindowSizeConfigurable 验证默认窗口大小可配置，且影响新建会话。
+func TestDefaultWindowSizeConfigurable(t *testing.T) {
+	orig := DefaultWindowSize()
+	t.Cleanup(func() { SetDefaultWindowSize(orig) })
+
+	if orig != DefaultMaxWindowSize {
+		t.Fatalf("初始默认窗口 = %d，期望 %d", orig, DefaultMaxWindowSize)
+	}
+
+	SetDefaultWindowSize(4)
+	if got := DefaultWindowSize(); got != 4 {
+		t.Fatalf("DefaultWindowSize = %d，期望 4", got)
+	}
+
+	const id = "window-size-session"
+	m := GetSimpleMemory(id)
+	defer DeleteSimpleMemory(id)
+	if m.MaxWindowSize() != 4 {
+		t.Fatalf("新建会话窗口 = %d，期望 4", m.MaxWindowSize())
+	}
+
+	SetDefaultWindowSize(0) // 非正值应忽略
+	if got := DefaultWindowSize(); got != 4 {
+		t.Fatalf("SetDefaultWindowSize(0) 后 = %d，期望保持 4", got)
+	}
+}

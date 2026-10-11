@@ -45,7 +45,7 @@ func main() {
 	fmt.Println("Q: 你好")
 	fmt.Println("LLM:", answer)
 	mem.GetSimpleMemory(id).SetMessage(schema.UserMessage("你好"))
-	mem.GetSimpleMemory(id).SetMessage(schema.SystemMessage(answer))
+	mem.GetSimpleMemory(id).SetMessage(schema.AssistantMessage(answer, nil))
 
 	// 第二轮对话
 	userMessage = &chat_pipeline.UserMessage{

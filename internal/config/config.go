@@ -73,6 +73,8 @@ type MemoryConfig struct {
 	SessionTTL time.Duration `yaml:"session_ttl"`
 	// CleanupInterval 后台清理会话的周期
 	CleanupInterval time.Duration `yaml:"cleanup_interval"`
+	// MaxWindowSize 会话记忆窗口大小（消息条数），约等于对话轮数 × 2
+	MaxWindowSize int `yaml:"max_window_size"`
 }
 
 // KnowledgeChunkConfig 知识库文档切分参数，对应配置文件中的 knowledge_chunk 段。
@@ -178,6 +180,7 @@ func defaultConfig() *Config {
 		Memory: MemoryConfig{
 			SessionTTL:      mem.DefaultSessionTTL,
 			CleanupInterval: mem.DefaultCleanupInterval,
+			MaxWindowSize:   mem.DefaultMaxWindowSize,
 		},
 		Prometheus: PrometheusConfig{
 			BaseURL: "http://127.0.0.1:9090",
@@ -304,6 +307,9 @@ func fillDefaults(c *Config) {
 	}
 	if c.Memory.CleanupInterval <= 0 {
 		c.Memory.CleanupInterval = def.Memory.CleanupInterval
+	}
+	if c.Memory.MaxWindowSize <= 0 {
+		c.Memory.MaxWindowSize = def.Memory.MaxWindowSize
 	}
 }
 

@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	// DefaultMaxWindowSize 是会话默认的最大窗口大小（消息条数）。
-	DefaultMaxWindowSize = 6
+	// DefaultMaxWindowSize 是会话默认窗口大小（消息条数）的初始值，约 4 轮对话。
+	DefaultMaxWindowSize = 8
 	// DefaultSessionTTL 是会话默认的空闲回收时间。
 	DefaultSessionTTL = 30 * time.Minute
 	// DefaultCleanupInterval 是后台清理会话的默认周期。
@@ -30,6 +30,26 @@ var (
 	mu              sync.RWMutex
 )
 
+// defaultWindowSize 是当前生效的默认窗口大小，可经 SetDefaultWindowSize 覆盖。
+var defaultWindowSize atomic.Int64
+
+func init() {
+	defaultWindowSize.Store(DefaultMaxWindowSize)
+}
+
+// SetDefaultWindowSize 设置新建会话的默认窗口大小（消息条数），n <= 0 时忽略。
+// 由 main 在启动时按 memory.max_window_size 调用；并发调用安全。
+func SetDefaultWindowSize(n int) {
+	if n > 0 {
+		defaultWindowSize.Store(int64(n))
+	}
+}
+
+// DefaultWindowSize 返回当前生效的默认窗口大小。
+func DefaultWindowSize() int {
+	return int(defaultWindowSize.Load())
+}
+
 // SimpleMemory 表示一个会话的滑动窗口记忆，字段非导出以保证并发安全。
 type SimpleMemory struct {
 	id            string
@@ -41,10 +61,10 @@ type SimpleMemory struct {
 }
 
 // NewSimpleMemory 创建指定 ID 的会话记忆。
-// maxWindowSize 为窗口可保留的最大消息条数，小于等于 0 时使用 DefaultMaxWindowSize。
+// maxWindowSize 为窗口可保留的最大消息条数，小于等于 0 时使用当前默认窗口大小（DefaultWindowSize）。
 func NewSimpleMemory(id string, maxWindowSize int) *SimpleMemory {
 	if maxWindowSize <= 0 {
-		maxWindowSize = DefaultMaxWindowSize
+		maxWindowSize = DefaultWindowSize()
 	}
 	m := &SimpleMemory{
 		id:            id,
@@ -72,7 +92,7 @@ func GetSimpleMemory(id string) *SimpleMemory {
 		m.touch()
 		return m
 	}
-	m = NewSimpleMemory(id, DefaultMaxWindowSize)
+	m = NewSimpleMemory(id, DefaultWindowSize())
 	simpleMemoryMap[id] = m
 	return m
 }

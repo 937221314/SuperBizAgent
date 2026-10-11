@@ -77,16 +77,18 @@ func TestLoadMemory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("加载配置失败: %v", err)
 	}
-	if got.Memory.SessionTTL != 30*time.Minute || got.Memory.CleanupInterval != 5*time.Minute {
-		t.Errorf("默认 memory = {%s, %s}，期望 {30m, 5m}", got.Memory.SessionTTL, got.Memory.CleanupInterval)
+	if got.Memory.SessionTTL != 30*time.Minute || got.Memory.CleanupInterval != 5*time.Minute || got.Memory.MaxWindowSize != 8 {
+		t.Errorf("默认 memory = {%s, %s, %d}，期望 {30m, 5m, 8}",
+			got.Memory.SessionTTL, got.Memory.CleanupInterval, got.Memory.MaxWindowSize)
 	}
 
-	got, err = Load(writeConfigFile(t, "memory:\n  session_ttl: 1h\n  cleanup_interval: 90s\n"))
+	got, err = Load(writeConfigFile(t, "memory:\n  session_ttl: 1h\n  cleanup_interval: 90s\n  max_window_size: 12\n"))
 	if err != nil {
 		t.Fatalf("加载配置失败: %v", err)
 	}
-	if got.Memory.SessionTTL != time.Hour || got.Memory.CleanupInterval != 90*time.Second {
-		t.Errorf("显式 memory = {%s, %s}，期望 {1h, 90s}", got.Memory.SessionTTL, got.Memory.CleanupInterval)
+	if got.Memory.SessionTTL != time.Hour || got.Memory.CleanupInterval != 90*time.Second || got.Memory.MaxWindowSize != 12 {
+		t.Errorf("显式 memory = {%s, %s, %d}，期望 {1h, 90s, 12}",
+			got.Memory.SessionTTL, got.Memory.CleanupInterval, got.Memory.MaxWindowSize)
 	}
 }
 

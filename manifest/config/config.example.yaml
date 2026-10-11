@@ -108,3 +108,5 @@ memory:
   session_ttl: 30m
   # 后台清理周期
   cleanup_interval: 5m
+  # 会话记忆窗口大小（消息条数），约等于保留的对话轮数 × 2
+  max_window_size: 8

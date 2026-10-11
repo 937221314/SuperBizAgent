@@ -22,6 +22,7 @@ func main() {
 		g.Log().Fatalf(ctx, "加载配置失败: %v", err)
 	}
 	// 后台回收空闲会话，避免长跑进程中内存只增不减。
+	mem.SetDefaultWindowSize(cfg.Memory.MaxWindowSize)
 	mem.StartSessionGC(ctx, cfg.Memory.SessionTTL, cfg.Memory.CleanupInterval)
 
 	s := g.Server()

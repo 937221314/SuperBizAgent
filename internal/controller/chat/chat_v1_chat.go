@@ -35,7 +35,7 @@ func (c *ControllerV1) Chat(ctx context.Context, req *v1.ChatReq) (res *v1.ChatR
 	}
 
 	mem.GetSimpleMemory(id).SetMessage(schema.UserMessage(msg))
-	mem.GetSimpleMemory(id).SetMessage(schema.SystemMessage(out.Content))
+	mem.GetSimpleMemory(id).SetMessage(schema.AssistantMessage(out.Content, nil))
 
 	return res, nil
 }

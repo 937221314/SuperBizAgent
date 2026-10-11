@@ -63,7 +63,7 @@ func (c *ControllerV1) streamToClient(ctx context.Context, clientID, id, msg str
 		answer := fullResponse.String()
 		if answer != "" {
 			mem.GetSimpleMemory(id).SetMessage(schema.UserMessage(msg))
-			mem.GetSimpleMemory(id).SetMessage(schema.SystemMessage(answer))
+			mem.GetSimpleMemory(id).SetMessage(schema.AssistantMessage(answer, nil))
 		}
 	}()
 
