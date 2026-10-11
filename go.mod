@@ -4,7 +4,6 @@ go 1.27.1
 
 require (
 	github.com/cloudwego/eino v0.9.21
-	github.com/cloudwego/eino-examples v0.0.0-20260929012518-a6dbd95ab51f
 	github.com/cloudwego/eino-ext/components/document/loader/file v0.0.0-20260916065400-2607f61e807f
 	github.com/cloudwego/eino-ext/components/document/parser/docx v0.0.0-20260916065400-2607f61e807f
 	github.com/cloudwego/eino-ext/components/document/parser/pdf v0.0.0-20260916065400-2607f61e807f

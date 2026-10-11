@@ -50,8 +50,6 @@ github.com/cloudwego/base64x v0.1.6 h1:t11wG9AECkCDk5fMSoxmufanudBtJ+/HemLstXDLI
 github.com/cloudwego/base64x v0.1.6/go.mod h1:OFcloc187FXDaYHvrNIjxSe8ncn0OOM8gEHfghB2IPU=
 github.com/cloudwego/eino v0.9.21 h1:kBAyAjsnPq5NDWjt0VdmP9HY/XVUHs05LoeqybudPRQ=
 github.com/cloudwego/eino v0.9.21/go.mod h1:OBD1mrkfkt/pJa4rkg1P0VnaMeOVl7l8IAdEqY//3IQ=
-github.com/cloudwego/eino-examples v0.0.0-20260929012518-a6dbd95ab51f h1:f1qAHwnvzYOfPUtwxYhTXwaY+4KU7zaDxQ7eSkF3ENU=
-github.com/cloudwego/eino-examples v0.0.0-20260929012518-a6dbd95ab51f/go.mod h1:3t8AJLZIrLpe1rUgDGd3Zc58/qpTXgnPSPD8R4bkeyI=
 github.com/cloudwego/eino-ext/components/document/loader/file v0.0.0-20260916065400-2607f61e807f h1:EySjENk2NVX5HH/wqTMpBOCpTdbHl1vfOXB4uGVntG0=
 github.com/cloudwego/eino-ext/components/document/loader/file v0.0.0-20260916065400-2607f61e807f/go.mod h1:HnxTQxmhuev6zaBl92EHUy/vEDWCuoE/OE4cTiF5JCg=
 github.com/cloudwego/eino-ext/components/document/parser/docx v0.0.0-20260916065400-2607f61e807f h1:UY/VQXFSSPkOhPKVV8XiS+sHs/BFFGrBPs3wD5ggGlo=
