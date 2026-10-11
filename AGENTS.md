@@ -31,6 +31,12 @@ SuperBizAgent 是一个 Go 项目。
   再由 PR 合并；不要用 `git push origin main` 代替合并。
 - 提交 PR 前确认 `go build ./...` 与 `make lint` 通过。
 - `main` 已开启分支保护，直推会被远端拒绝。
+- 合并 PR 用**普通合并**：`gh pr merge <n> --merge`，**不要用 `--squash`**。
+  squash 会在 `main` 上生成一个与 `dev` 历史不同的提交，使 `dev` 与 `main` 分叉，
+  下次 PR 会报冲突、需额外处理；普通合并会让 `main` 包含 `dev` 的提交历史，避免此问题。
+- 万一已经用了 squash（或远端只允许 squash），合并后立即把 `main` 同步回 `dev`：
+  `git fetch origin && git merge -s ours origin/main && git push origin dev`
+  （`dev` 已包含 `main` 的内容，`-s ours` 只记录合并关系、不改变 `dev` 的树）。
 
 ## 注释约定
 
