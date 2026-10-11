@@ -81,6 +81,11 @@ const (
 	EnvMemoryMaxWindowSize   = "MEMORY_MAX_WINDOW_SIZE"
 )
 
+// SSE 推送相关的环境变量名。
+const (
+	EnvSSESlowClientPolicy = "SSE_SLOW_CLIENT_POLICY"
+)
+
 // Config 应用总配置。
 type Config struct {
 	Milvus         MilvusConfig         `yaml:"milvus"`
@@ -89,6 +94,7 @@ type Config struct {
 	Prometheus     PrometheusConfig     `yaml:"prometheus"`
 	KnowledgeChunk KnowledgeChunkConfig `yaml:"knowledge_chunk"`
 	Memory         MemoryConfig         `yaml:"memory"`
+	SSE            SSEConfig            `yaml:"sse"`
 	McpURL         string               `yaml:"mcp_url"`
 	FileDir        string               `yaml:"file_dir"`
 }
@@ -115,6 +121,13 @@ type KnowledgeChunkConfig struct {
 type PrometheusConfig struct {
 	// BaseURL Prometheus 服务地址，例如 http://127.0.0.1:9090
 	BaseURL string `yaml:"base_url"`
+}
+
+// SSEConfig SSE 推送相关配置，对应配置文件中的 sse 段。
+type SSEConfig struct {
+	// SlowClientPolicy 慢客户端（缓冲区满）处置策略：
+	// drop 丢弃消息（默认）；disconnect 断开该客户端连接。
+	SlowClientPolicy string `yaml:"slow_client_policy"`
 }
 
 // MysqlConfig MySQL 工具配置，对应配置文件中的 mysql 段。
@@ -207,6 +220,9 @@ func defaultConfig() *Config {
 			SessionTTL:      mem.DefaultSessionTTL,
 			CleanupInterval: mem.DefaultCleanupInterval,
 			MaxWindowSize:   mem.DefaultMaxWindowSize,
+		},
+		SSE: SSEConfig{
+			SlowClientPolicy: "drop",
 		},
 		Prometheus: PrometheusConfig{
 			BaseURL: "http://127.0.0.1:9090",
@@ -351,6 +367,7 @@ func applyEnv(c *Config) error {
 
 		EnvMysqlDangerousStatementMode: &c.Mysql.DangerousStatementMode,
 		EnvPrometheusBaseURL:           &c.Prometheus.BaseURL,
+		EnvSSESlowClientPolicy:         &c.SSE.SlowClientPolicy,
 		EnvFileDir:                     &c.FileDir,
 	}
 	for key, target := range overrides {
@@ -510,6 +527,9 @@ func fillDefaults(c *Config) {
 	if c.Memory.MaxWindowSize <= 0 {
 		c.Memory.MaxWindowSize = def.Memory.MaxWindowSize
 	}
+	if c.SSE.SlowClientPolicy == "" {
+		c.SSE.SlowClientPolicy = def.SSE.SlowClientPolicy
+	}
 }
 
 // validate 校验必填项。
@@ -531,6 +551,11 @@ func (c *Config) validate() error {
 	case "deny", "interrupt":
 	default:
 		return fmt.Errorf("配置项 mysql.dangerous_statement_mode 只能是 deny 或 interrupt，当前为 %q", c.Mysql.DangerousStatementMode)
+	}
+	switch c.SSE.SlowClientPolicy {
+	case "drop", "disconnect":
+	default:
+		return fmt.Errorf("配置项 sse.slow_client_policy 只能是 drop 或 disconnect，当前为 %q", c.SSE.SlowClientPolicy)
 	}
 	if c.KnowledgeChunk.ChunkSize <= 0 {
 		return fmt.Errorf("配置项 knowledge_chunk.chunk_size 必须大于 0，当前为 %d", c.KnowledgeChunk.ChunkSize)

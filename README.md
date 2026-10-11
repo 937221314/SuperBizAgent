@@ -161,7 +161,8 @@ SuperBizAgent/
 - Milvus schema 校验：集合已存在时比对字段与向量维度，不一致默认报错；
   `milvus.recreate_on_schema_mismatch: true` 可改为删除重建（会丢失集合内全部数据）。
 - 工具相关配置项：`mysql.dangerous_statement_mode`（`mysql_exec` 遇到 DROP/TRUNCATE 的行为）、
-  `prometheus.base_url`（告警查询地址）、`mcp_url`（日志类 MCP 服务地址）。
+  `prometheus.base_url`（告警查询地址）、`mcp_url`（日志类 MCP 服务地址，不可用时自动跳过）。
+- SSE：`sse.slow_client_policy`（慢客户端缓冲区满时 `drop` 丢弃 / `disconnect` 断开）。
 - 知识库切分：`knowledge_chunk.chunk_size`（分片最大字符数）、`knowledge_chunk.overlap_size`
   （相邻分片重叠字符数），仅 Markdown 之外格式的递归切分使用。
 - 会话记忆：`memory.session_ttl`（会话空闲回收时间，默认 30m）、`memory.cleanup_interval`

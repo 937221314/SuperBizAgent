@@ -335,3 +335,37 @@ func TestApplyEnvInvalid(t *testing.T) {
 		})
 	}
 }
+
+// TestLoadSSESlowClientPolicy 校验 sse.slow_client_policy 的默认值、显式值、
+// 环境变量覆盖与非法值拦截。
+func TestLoadSSESlowClientPolicy(t *testing.T) {
+	got, err := Load(writeConfigFile(t, ""))
+	if err != nil {
+		t.Fatalf("加载配置失败: %v", err)
+	}
+	if got.SSE.SlowClientPolicy != "drop" {
+		t.Errorf("默认 slow_client_policy = %q，期望 drop", got.SSE.SlowClientPolicy)
+	}
+
+	got, err = Load(writeConfigFile(t, "sse:\n  slow_client_policy: disconnect\n"))
+	if err != nil {
+		t.Fatalf("加载配置失败: %v", err)
+	}
+	if got.SSE.SlowClientPolicy != "disconnect" {
+		t.Errorf("显式 slow_client_policy = %q，期望 disconnect", got.SSE.SlowClientPolicy)
+	}
+
+	t.Setenv(EnvSSESlowClientPolicy, "drop")
+	got, err = Load(writeConfigFile(t, "sse:\n  slow_client_policy: disconnect\n"))
+	if err != nil {
+		t.Fatalf("加载配置失败: %v", err)
+	}
+	if got.SSE.SlowClientPolicy != "drop" {
+		t.Errorf("环境变量覆盖后 = %q，期望 drop", got.SSE.SlowClientPolicy)
+	}
+
+	t.Setenv(EnvSSESlowClientPolicy, "")
+	if _, err := Load(writeConfigFile(t, "sse:\n  slow_client_policy: block\n")); err == nil {
+		t.Fatal("非法 slow_client_policy 应使加载失败")
+	}
+}

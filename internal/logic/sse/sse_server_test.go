@@ -211,6 +211,11 @@ func TestServerStreamEndToEnd(t *testing.T) {
 		t.Fatalf("广播帧 = %v", notice)
 	}
 
+	// 观测计数：建连 1 次、成功投递 2 条（单播 + 广播）、无丢弃
+	if got := srv.Stats(); got.Connected != 1 || got.Sent != 2 || got.Dropped != 0 {
+		t.Fatalf("Stats = %+v, want Connected=1 Sent=2 Dropped=0", got)
+	}
+
 	// 同一 client_id 重复连接应被拒绝，且不影响已有连接
 	dupConn, dupResp, _ := dialSSE(t, addr, "e2e-1")
 	_ = dupConn.Close()
@@ -224,6 +229,11 @@ func TestServerStreamEndToEnd(t *testing.T) {
 	// 客户端断开后应自动注销（依赖 request context 取消）
 	_ = conn.Close()
 	waitForClientCount(t, srv, 0, 3*time.Second)
+
+	// 断开后计数 +1
+	if got := srv.Stats().Disconnected; got != 1 {
+		t.Fatalf("Disconnected = %d, want 1", got)
+	}
 
 	// 注销之后的投递应返回「客户端不存在」
 	if err := srv.Send("e2e-1", Message{Data: "x"}); !errors.Is(err, ErrClientNotFound) {

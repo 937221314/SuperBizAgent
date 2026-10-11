@@ -8,10 +8,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gogf/gf/v2/container/gmap"
@@ -34,6 +36,9 @@ const (
 	defaultMessageChanSize = 100
 	defaultRetryInterval   = 3 * time.Second
 	clientIDMaxLen         = 64
+
+	// dropLogInterval 限制丢弃告警频率，避免慢客户端持续堆积时刷屏。
+	dropLogInterval = time.Second
 )
 
 // clientIDPattern 限定客户端自带 ID，避免超长与特殊字符。
@@ -105,6 +110,24 @@ func (c *Client) writeComment(text string) {
 	c.writeRaw(": " + text + "\n\n")
 }
 
+// SlowClientPolicy 决定缓冲区满（慢客户端）时如何处置。
+type SlowClientPolicy string
+
+const (
+	// SlowClientDrop 丢弃消息并返回 ErrBufferFull（默认）；不阻塞业务发送方。
+	SlowClientDrop SlowClientPolicy = "drop"
+	// SlowClientDisconnect 注销慢客户端、结束其连接，释放缓冲区与连接资源。
+	SlowClientDisconnect SlowClientPolicy = "disconnect"
+)
+
+// Stats 是 SSE 服务的累计计数快照，用于观测投递与丢弃情况。
+type Stats struct {
+	Connected    int64 // 累计建立连接数
+	Disconnected int64 // 累计断开连接数
+	Sent         int64 // 累计成功投递的消息数
+	Dropped      int64 // 缓冲区满被丢弃的消息数
+}
+
 // Server SSE 服务，管理客户端注册表与消息投递。
 type Server struct {
 	// clients key 为客户端 ID，gmap 的 safe 模式保证并发安全。
@@ -113,6 +136,16 @@ type Server struct {
 	heartbeatInterval time.Duration
 	retryInterval     time.Duration
 	messageChanSize   int
+	slowClientPolicy  SlowClientPolicy
+
+	connected    atomic.Int64
+	disconnected atomic.Int64
+	sent         atomic.Int64
+	dropped      atomic.Int64
+
+	// dropLogMu 保护 lastDropLog，用于限制丢弃告警的频率。
+	dropLogMu   sync.Mutex
+	lastDropLog time.Time
 }
 
 // Option 用于自定义 Server 的可选参数。
@@ -145,6 +178,15 @@ func WithMessageChanSize(n int) Option {
 	}
 }
 
+// WithSlowClientPolicy 设置慢客户端处置策略，空值或非法值忽略（保持默认 drop）。
+func WithSlowClientPolicy(p SlowClientPolicy) Option {
+	return func(s *Server) {
+		if p == SlowClientDrop || p == SlowClientDisconnect {
+			s.slowClientPolicy = p
+		}
+	}
+}
+
 // New 创建 SSE 服务。
 func New(opts ...Option) *Server {
 	s := &Server{
@@ -152,6 +194,7 @@ func New(opts ...Option) *Server {
 		heartbeatInterval: defaultHeartbeatInterval,
 		retryInterval:     defaultRetryInterval,
 		messageChanSize:   defaultMessageChanSize,
+		slowClientPolicy:  SlowClientDrop,
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -162,6 +205,16 @@ func New(opts ...Option) *Server {
 // ClientCount 返回在线客户端数量。
 func (s *Server) ClientCount() int {
 	return s.clients.Size()
+}
+
+// Stats 返回当前累计计数快照，用于观测投递与丢弃情况。
+func (s *Server) Stats() Stats {
+	return Stats{
+		Connected:    s.connected.Load(),
+		Disconnected: s.disconnected.Load(),
+		Sent:         s.sent.Load(),
+		Dropped:      s.dropped.Load(),
+	}
 }
 
 // Create 完成 SSE 握手：校验客户端 ID、注册客户端并下发 retry 与 connected 事件。
@@ -187,6 +240,7 @@ func (s *Server) Create(ctx context.Context, r *ghttp.Request) (*Client, error) 
 	if !s.clients.SetIfNotExist(clientID, client) {
 		return nil, gerror.Newf("sse 客户端 ID 已被占用: %s", clientID)
 	}
+	s.connected.Add(1)
 
 	// 响应头必须在任何写入之前设置。
 	r.Response.Header().Set("Content-Type", contentTypeSSE)
@@ -216,6 +270,7 @@ func (s *Server) Run(ctx context.Context, client *Client) {
 	// 统一在此注销：close(done) 幂等，按实例删除不会误删同 ID 新连接。
 	defer func() {
 		s.removeClient(client)
+		s.disconnected.Add(1)
 		g.Log().Debugf(ctx, "sse 客户端已断开: %s", client.ID())
 	}()
 
@@ -255,10 +310,36 @@ func (s *Server) Send(clientID string, msg Message) error {
 	case <-client.done:
 		return gerror.Wrapf(ErrClientClosed, "client_id=%s", clientID)
 	case client.messageChan <- msg:
+		s.sent.Add(1)
 		return nil
 	default:
+		s.handleSlowClient(clientID)
 		return gerror.Wrapf(ErrBufferFull, "client_id=%s", clientID)
 	}
+}
+
+// handleSlowClient 处理缓冲区已满：计数并告警；disconnect 策略下直接断开慢客户端。
+func (s *Server) handleSlowClient(clientID string) {
+	total := s.dropped.Add(1)
+	if s.slowClientPolicy == SlowClientDisconnect {
+		s.RemoveClient(clientID)
+		log.Printf("[sse] 慢客户端已断开 client_id=%s 累计丢弃=%d", clientID, total)
+		return
+	}
+	s.logDropped(clientID, total)
+}
+
+// logDropped 输出丢弃告警，按 dropLogInterval 限频，避免刷屏。
+func (s *Server) logDropped(clientID string, total int64) {
+	s.dropLogMu.Lock()
+	if time.Since(s.lastDropLog) < dropLogInterval {
+		s.dropLogMu.Unlock()
+		return
+	}
+	s.lastDropLog = time.Now()
+	s.dropLogMu.Unlock()
+
+	log.Printf("[sse] 消息被丢弃 client_id=%s 累计丢弃=%d（缓冲区满）", clientID, total)
 }
 
 // Broadcast 向所有在线客户端投递同一条消息，返回成功数量；单个客户端失败不影响其它客户端。

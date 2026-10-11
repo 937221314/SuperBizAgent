@@ -108,3 +108,11 @@ memory:
   cleanup_interval: 5m
   # 会话记忆窗口大小（消息条数），约等于保留的对话轮数 × 2
   max_window_size: 8
+
+# sse
+# SSE 推送策略
+sse:
+  # 慢客户端（消息缓冲区已满）处置：
+  #   drop       丢弃消息，不阻塞业务发送方（默认）
+  #   disconnect 断开该客户端连接，释放缓冲区与连接资源
+  slow_client_policy: "drop"

@@ -135,6 +135,9 @@ func TestSend(t *testing.T) {
 	if err := s.Send("c1", Message{Data: "second"}); !errors.Is(err, ErrBufferFull) {
 		t.Fatalf("Send(缓冲区已满) = %v, want ErrBufferFull", err)
 	}
+	if got := s.Stats(); got.Sent != 2 || got.Dropped != 1 {
+		t.Fatalf("Stats = %+v, want Sent=2 Dropped=1", got)
+	}
 
 	// 连接已关闭但尚未注销（例如 Run 正在退出）
 	client.close()
@@ -151,6 +154,34 @@ func TestSend(t *testing.T) {
 	}
 	if s.ClientCount() != 0 {
 		t.Fatalf("ClientCount() = %d, want 0", s.ClientCount())
+	}
+}
+
+// TestSlowClientDisconnectPolicy 校验 disconnect 策略下缓冲区满会断开慢客户端。
+func TestSlowClientDisconnectPolicy(t *testing.T) {
+	s := New(WithSlowClientPolicy(SlowClientDisconnect))
+	client := newFakeClient("slow", 1)
+	s.clients.Set(client.id, client)
+
+	if err := s.Send("slow", Message{Data: "first"}); err != nil {
+		t.Fatalf("首次投递失败: %v", err)
+	}
+	if err := s.Send("slow", Message{Data: "second"}); !errors.Is(err, ErrBufferFull) {
+		t.Fatalf("Send(缓冲区已满) = %v, want ErrBufferFull", err)
+	}
+	if s.ClientCount() != 0 {
+		t.Fatalf("disconnect 策略下慢客户端应被注销，ClientCount() = %d", s.ClientCount())
+	}
+	if got := s.Stats().Dropped; got != 1 {
+		t.Fatalf("Dropped = %d, want 1", got)
+	}
+}
+
+// TestWithSlowClientPolicyIgnoresInvalid 校验非法策略被忽略，保持默认 drop。
+func TestWithSlowClientPolicyIgnoresInvalid(t *testing.T) {
+	s := New(WithSlowClientPolicy("unknown"))
+	if s.slowClientPolicy != SlowClientDrop {
+		t.Fatalf("非法策略应保持默认 drop，实际 %q", s.slowClientPolicy)
 	}
 }
 
