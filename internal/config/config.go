@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -56,6 +57,28 @@ const (
 // 知识库文档目录相关的环境变量名。
 const (
 	EnvFileDir = "FILE_DIR"
+)
+
+// Milvus 默认库、向量维度与索引相关的环境变量名。
+const (
+	EnvMilvusDefaultDBName            = "MILVUS_DEFAULT_DB_NAME"
+	EnvMilvusVectorDim                = "MILVUS_VECTOR_DIM"
+	EnvMilvusIndexM                   = "MILVUS_INDEX_M"
+	EnvMilvusIndexEfConstruction      = "MILVUS_INDEX_EF_CONSTRUCTION"
+	EnvMilvusRecreateOnSchemaMismatch = "MILVUS_RECREATE_ON_SCHEMA_MISMATCH"
+)
+
+// 知识库切分相关的环境变量名。
+const (
+	EnvKnowledgeChunkSize        = "KNOWLEDGE_CHUNK_SIZE"
+	EnvKnowledgeChunkOverlapSize = "KNOWLEDGE_CHUNK_OVERLAP_SIZE"
+)
+
+// 会话记忆相关的环境变量名。
+const (
+	EnvMemorySessionTTL      = "MEMORY_SESSION_TTL"
+	EnvMemoryCleanupInterval = "MEMORY_CLEANUP_INTERVAL"
+	EnvMemoryMaxWindowSize   = "MEMORY_MAX_WINDOW_SIZE"
 )
 
 // Config 应用总配置。
@@ -218,7 +241,9 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("读取配置文件 %s 失败: %w", path, err)
 	}
 
-	applyEnv(c)
+	if err := applyEnv(c); err != nil {
+		return nil, err
+	}
 	fillDefaults(c)
 
 	if err := c.validate(); err != nil {
@@ -309,12 +334,13 @@ func StartAutoReload(ctx context.Context, interval time.Duration, onReload func(
 	return done
 }
 
-// applyEnv 使用环境变量覆盖配置项，空值忽略。
-func applyEnv(c *Config) {
+// applyEnv 使用环境变量覆盖配置项，空值忽略；非空但非法的值返回错误。
+func applyEnv(c *Config) error {
 	overrides := map[string]*string{
 		EnvMilvusAddress:        &c.Milvus.Address,
 		EnvMilvusUsername:       &c.Milvus.Username,
 		EnvMilvusPassword:       &c.Milvus.Password,
+		EnvMilvusDefaultDBName:  &c.Milvus.DefaultDBName,
 		EnvMilvusDBName:         &c.Milvus.DBName,
 		EnvMilvusCollectionName: &c.Milvus.CollectionName,
 
@@ -332,6 +358,105 @@ func applyEnv(c *Config) {
 			*target = v
 		}
 	}
+
+	int64Targets := map[string]*int64{
+		EnvMilvusVectorDim: &c.Milvus.VectorDim,
+	}
+	for key, target := range int64Targets {
+		if err := setInt64Env(key, target); err != nil {
+			return err
+		}
+	}
+
+	intTargets := map[string]*int{
+		EnvMilvusIndexM:              &c.Milvus.Index.M,
+		EnvMilvusIndexEfConstruction: &c.Milvus.Index.EfConstruction,
+		EnvKnowledgeChunkSize:        &c.KnowledgeChunk.ChunkSize,
+		EnvKnowledgeChunkOverlapSize: &c.KnowledgeChunk.OverlapSize,
+		EnvMemoryMaxWindowSize:       &c.Memory.MaxWindowSize,
+	}
+	for key, target := range intTargets {
+		if err := setIntEnv(key, target); err != nil {
+			return err
+		}
+	}
+
+	durationTargets := map[string]*time.Duration{
+		EnvMemorySessionTTL:      &c.Memory.SessionTTL,
+		EnvMemoryCleanupInterval: &c.Memory.CleanupInterval,
+	}
+	for key, target := range durationTargets {
+		if err := setDurationEnv(key, target); err != nil {
+			return err
+		}
+	}
+
+	boolTargets := map[string]*bool{
+		EnvMilvusRecreateOnSchemaMismatch: &c.Milvus.RecreateOnSchemaMismatch,
+	}
+	for key, target := range boolTargets {
+		if err := setBoolEnv(key, target); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// setIntEnv 用环境变量覆盖 int 配置项；空值忽略，非法值报错。
+func setIntEnv(key string, target *int) error {
+	v := os.Getenv(key)
+	if v == "" {
+		return nil
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return fmt.Errorf("环境变量 %s 不是合法整数: %w", key, err)
+	}
+	*target = n
+	return nil
+}
+
+// setInt64Env 用环境变量覆盖 int64 配置项；空值忽略，非法值报错。
+func setInt64Env(key string, target *int64) error {
+	v := os.Getenv(key)
+	if v == "" {
+		return nil
+	}
+	n, err := strconv.ParseInt(v, 10, 64)
+	if err != nil {
+		return fmt.Errorf("环境变量 %s 不是合法整数: %w", key, err)
+	}
+	*target = n
+	return nil
+}
+
+// setDurationEnv 用环境变量覆盖时长配置项；空值忽略，非法值报错。
+func setDurationEnv(key string, target *time.Duration) error {
+	v := os.Getenv(key)
+	if v == "" {
+		return nil
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		return fmt.Errorf("环境变量 %s 不是合法时长: %w", key, err)
+	}
+	*target = d
+	return nil
+}
+
+// setBoolEnv 用环境变量覆盖 bool 配置项；空值忽略，非法值报错。
+func setBoolEnv(key string, target *bool) error {
+	v := os.Getenv(key)
+	if v == "" {
+		return nil
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		return fmt.Errorf("环境变量 %s 不是合法布尔值: %w", key, err)
+	}
+	*target = b
+	return nil
 }
 
 // fillDefaults 为未配置的字段补齐默认值。

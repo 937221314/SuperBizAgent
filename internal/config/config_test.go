@@ -279,3 +279,59 @@ func TestStartAutoReload(t *testing.T) {
 		t.Fatal("ctx 取消后自动重载 goroutine 未退出")
 	}
 }
+
+// TestApplyEnvTypedOverrides 校验 int/int64/duration/bool 类环境变量覆盖。
+func TestApplyEnvTypedOverrides(t *testing.T) {
+	t.Setenv(EnvMilvusDefaultDBName, "default2")
+	t.Setenv(EnvMilvusVectorDim, "512")
+	t.Setenv(EnvMilvusIndexM, "32")
+	t.Setenv(EnvMilvusIndexEfConstruction, "400")
+	t.Setenv(EnvMilvusRecreateOnSchemaMismatch, "true")
+	t.Setenv(EnvKnowledgeChunkSize, "1500")
+	t.Setenv(EnvKnowledgeChunkOverlapSize, "300")
+	t.Setenv(EnvMemorySessionTTL, "2h")
+	t.Setenv(EnvMemoryCleanupInterval, "1m")
+	t.Setenv(EnvMemoryMaxWindowSize, "16")
+
+	got, err := Load(writeConfigFile(t, ""))
+	if err != nil {
+		t.Fatalf("加载配置失败: %v", err)
+	}
+
+	if got.Milvus.DefaultDBName != "default2" {
+		t.Errorf("default_db_name = %q", got.Milvus.DefaultDBName)
+	}
+	if got.Milvus.VectorDim != 512 {
+		t.Errorf("vector_dim = %d", got.Milvus.VectorDim)
+	}
+	if got.Milvus.Index.M != 32 || got.Milvus.Index.EfConstruction != 400 {
+		t.Errorf("index = {%d, %d}", got.Milvus.Index.M, got.Milvus.Index.EfConstruction)
+	}
+	if !got.Milvus.RecreateOnSchemaMismatch {
+		t.Error("recreate_on_schema_mismatch 应为 true")
+	}
+	if got.KnowledgeChunk.ChunkSize != 1500 || got.KnowledgeChunk.OverlapSize != 300 {
+		t.Errorf("knowledge_chunk = {%d, %d}", got.KnowledgeChunk.ChunkSize, got.KnowledgeChunk.OverlapSize)
+	}
+	if got.Memory.SessionTTL != 2*time.Hour || got.Memory.CleanupInterval != time.Minute || got.Memory.MaxWindowSize != 16 {
+		t.Errorf("memory = {%s, %s, %d}", got.Memory.SessionTTL, got.Memory.CleanupInterval, got.Memory.MaxWindowSize)
+	}
+}
+
+// TestApplyEnvInvalid 校验非法环境变量使加载失败（fail-fast）。
+func TestApplyEnvInvalid(t *testing.T) {
+	cases := []struct{ key, value string }{
+		{EnvMilvusVectorDim, "abc"},
+		{EnvKnowledgeChunkSize, "1.5"},
+		{EnvMemorySessionTTL, "30"},
+		{EnvMilvusRecreateOnSchemaMismatch, "yes"},
+	}
+	for _, c := range cases {
+		t.Run(c.key, func(t *testing.T) {
+			t.Setenv(c.key, c.value)
+			if _, err := Load(writeConfigFile(t, "")); err == nil {
+				t.Fatalf("非法 %s=%q 应使加载失败", c.key, c.value)
+			}
+		})
+	}
+}

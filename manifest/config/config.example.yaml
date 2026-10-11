@@ -7,13 +7,11 @@
 # 说明：真实的 manifest/config/config.yaml 已在 .gitignore 中忽略，不会纳入版本控制，
 #       以免把密码等敏感信息提交到仓库。
 #
-# 以下环境变量可覆盖对应配置项（优先级：环境变量 > 配置文件 > 代码默认值）：
-#   MILVUS_ADDRESS、MILVUS_USERNAME、MILVUS_PASSWORD、MILVUS_DB_NAME、MILVUS_COLLECTION_NAME
-#   TEXT_EMBEDDING_API_KEY、TEXT_EMBEDDING_BASE_URL、TEXT_EMBEDDING_MODEL
-#   MYSQL_DANGEROUS_STATEMENT_MODE
-#   PROMETHEUS_BASE_URL
-#   FILE_DIR
-# 另外可通过 CONFIG_PATH 指定配置文件的绝对路径。
+# 所有配置项均可由环境变量覆盖（优先级：环境变量 > 配置文件 > 代码默认值）：
+#   MILVUS_*、TEXT_EMBEDDING_*、MCP_URL、MYSQL_DANGEROUS_STATEMENT_MODE、PROMETHEUS_BASE_URL、
+#   KNOWLEDGE_CHUNK_*、MEMORY_*、FILE_DIR
+# 完整清单见 dev-docs/configuration.md；非法类型的值会使加载失败。
+# 另外：CONFIG_PATH 指定配置文件路径，CONFIG_RELOAD_INTERVAL 开启定时热更新。
 
 # server
 server:
