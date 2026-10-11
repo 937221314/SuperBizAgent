@@ -153,6 +153,7 @@ SuperBizAgent/
 - 配置由 `internal/config` 加载，默认读取 `manifest/config/config.yaml`，可用 `CONFIG_PATH` 指定其它路径。
 - 优先级：**环境变量 > 配置文件 > 代码默认值**；配置文件不存在时使用内置默认值。
 - 示例见 `manifest/config/config.example.yaml`，环境变量与配置项清单详见 `dev-docs/configuration.md`。
+- Milvus 索引参数：`milvus.index.m` / `milvus.index.ef_construction`（HNSW，仅在集合首次创建时生效）。
 - 工具相关配置项：`mysql.dangerous_statement_mode`（`mysql_exec` 遇到 DROP/TRUNCATE 的行为）、
   `prometheus.base_url`（告警查询地址）、`mcp_url`（日志类 MCP 服务地址）。
 - 知识库切分：`knowledge_chunk.chunk_size`（分片最大字符数）、`knowledge_chunk.overlap_size`

@@ -112,6 +112,17 @@ type MilvusConfig struct {
 	CollectionName string `yaml:"collection_name"`
 	// VectorDim 向量维度
 	VectorDim int64 `yaml:"vector_dim"`
+	// Index 向量索引参数，对应配置文件中的 milvus.index 段
+	Index MilvusIndexConfig `yaml:"index"`
+}
+
+// MilvusIndexConfig 向量索引参数，对应配置文件中的 milvus.index 段。
+// 当前仅支持 HNSW（由 eino milvus2 indexer 创建）。
+type MilvusIndexConfig struct {
+	// M HNSW 每个节点的最大连接数，取值范围 4-64
+	M int `yaml:"m"`
+	// EfConstruction HNSW 建索引时的搜索宽度，取值范围 8-512
+	EfConstruction int `yaml:"ef_construction"`
 }
 
 var (
@@ -131,6 +142,10 @@ func defaultConfig() *Config {
 			DBName:         common.MilvusDBName,
 			CollectionName: common.MilvusCollectionName,
 			VectorDim:      1024,
+			Index: MilvusIndexConfig{
+				M:              16,
+				EfConstruction: 200,
+			},
 		},
 		TextEmbedding: TextEmbeddingConfig{
 			Model: "qwen3.7-text-embedding",
@@ -239,6 +254,12 @@ func fillDefaults(c *Config) {
 	if c.Milvus.VectorDim <= 0 {
 		c.Milvus.VectorDim = def.Milvus.VectorDim
 	}
+	if c.Milvus.Index.M <= 0 {
+		c.Milvus.Index.M = def.Milvus.Index.M
+	}
+	if c.Milvus.Index.EfConstruction <= 0 {
+		c.Milvus.Index.EfConstruction = def.Milvus.Index.EfConstruction
+	}
 	if c.TextEmbedding.Model == "" {
 		c.TextEmbedding.Model = def.TextEmbedding.Model
 	}
@@ -270,6 +291,12 @@ func (c *Config) validate() error {
 	}
 	if c.Milvus.VectorDim <= 0 {
 		return fmt.Errorf("配置项 milvus.vector_dim 必须大于 0，当前为 %d", c.Milvus.VectorDim)
+	}
+	if c.Milvus.Index.M < 4 || c.Milvus.Index.M > 64 {
+		return fmt.Errorf("配置项 milvus.index.m 取值范围为 4-64，当前为 %d", c.Milvus.Index.M)
+	}
+	if c.Milvus.Index.EfConstruction < 8 || c.Milvus.Index.EfConstruction > 512 {
+		return fmt.Errorf("配置项 milvus.index.ef_construction 取值范围为 8-512，当前为 %d", c.Milvus.Index.EfConstruction)
 	}
 	switch c.Mysql.DangerousStatementMode {
 	case "deny", "interrupt":

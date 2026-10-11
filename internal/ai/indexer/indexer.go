@@ -17,7 +17,7 @@ import (
 )
 
 // NewMilvusIndexer 创建 Milvus 索引器，客户端复用 utility/client 的业务库连接。
-// 集合名与向量维度取自 milvus.collection_name 与 milvus.vector_dim 配置。
+// 集合名、向量维度与 HNSW 索引参数取自 milvus 配置。
 func NewMilvusIndexer(ctx context.Context) (indexer.Indexer, error) {
 	cli, err := client.NewMilvusClient(ctx)
 	if err != nil {
@@ -39,9 +39,11 @@ func NewMilvusIndexer(ctx context.Context) (indexer.Indexer, error) {
 		Client:     cli,
 		Collection: cfg.Milvus.CollectionName,
 		Vector: &milvus2.VectorConfig{
-			Dimension:    cfg.Milvus.VectorDim,
-			MetricType:   milvus2.COSINE,
-			IndexBuilder: milvus2.NewHNSWIndexBuilder().WithM(16).WithEfConstruction(200),
+			Dimension:  cfg.Milvus.VectorDim,
+			MetricType: milvus2.COSINE,
+			IndexBuilder: milvus2.NewHNSWIndexBuilder().
+				WithM(cfg.Milvus.Index.M).
+				WithEfConstruction(cfg.Milvus.Index.EfConstruction),
 		},
 		Embedding: emb,
 	})
