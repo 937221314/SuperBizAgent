@@ -160,6 +160,8 @@ SuperBizAgent/
   `prometheus.base_url`（告警查询地址）、`mcp_url`（日志类 MCP 服务地址）。
 - 知识库切分：`knowledge_chunk.chunk_size`（分片最大字符数）、`knowledge_chunk.overlap_size`
   （相邻分片重叠字符数），仅 Markdown 之外格式的递归切分使用。
+- 会话记忆：`memory.session_ttl`（会话空闲回收时间，默认 30m）、`memory.cleanup_interval`
+  （后台清理周期，默认 5m）。
 - `manifest/config/config.yaml` 含明文密码，已加入 `.gitignore`，不要提交。
 
 ## 开发约定

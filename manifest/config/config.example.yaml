@@ -100,3 +100,11 @@ knowledge_chunk:
   chunk_size: 1000
   # 相邻分片的重叠字符数，需大于等于 0 且小于 chunk_size
   overlap_size: 200
+
+# memory
+# 会话记忆（内存实现）的回收策略
+memory:
+  # 会话空闲多久后被后台回收，支持 Go 时长格式（如 30m、1h）
+  session_ttl: 30m
+  # 后台清理周期
+  cleanup_interval: 5m

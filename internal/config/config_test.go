@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // writeConfigFile 写一份临时配置文件并返回其路径。
@@ -67,6 +68,25 @@ func TestLoadMilvusIndex(t *testing.T) {
 					got.Milvus.Index.M, got.Milvus.Index.EfConstruction, c.wantM, c.wantEf)
 			}
 		})
+	}
+}
+
+// TestLoadMemory 校验 memory 段时长的默认值与显式解析。
+func TestLoadMemory(t *testing.T) {
+	got, err := Load(writeConfigFile(t, ""))
+	if err != nil {
+		t.Fatalf("加载配置失败: %v", err)
+	}
+	if got.Memory.SessionTTL != 30*time.Minute || got.Memory.CleanupInterval != 5*time.Minute {
+		t.Errorf("默认 memory = {%s, %s}，期望 {30m, 5m}", got.Memory.SessionTTL, got.Memory.CleanupInterval)
+	}
+
+	got, err = Load(writeConfigFile(t, "memory:\n  session_ttl: 1h\n  cleanup_interval: 90s\n"))
+	if err != nil {
+		t.Fatalf("加载配置失败: %v", err)
+	}
+	if got.Memory.SessionTTL != time.Hour || got.Memory.CleanupInterval != 90*time.Second {
+		t.Errorf("显式 memory = {%s, %s}，期望 {1h, 90s}", got.Memory.SessionTTL, got.Memory.CleanupInterval)
 	}
 }
 

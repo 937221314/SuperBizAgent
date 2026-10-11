@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	"SuperBizAgent/utility/common"
+	"SuperBizAgent/utility/mem"
 
 	"gopkg.in/yaml.v3"
 )
@@ -60,8 +62,17 @@ type Config struct {
 	Mysql          MysqlConfig          `yaml:"mysql"`
 	Prometheus     PrometheusConfig     `yaml:"prometheus"`
 	KnowledgeChunk KnowledgeChunkConfig `yaml:"knowledge_chunk"`
+	Memory         MemoryConfig         `yaml:"memory"`
 	McpURL         string               `yaml:"mcp_url"`
 	FileDir        string               `yaml:"file_dir"`
+}
+
+// MemoryConfig 会话记忆配置，对应配置文件中的 memory 段。
+type MemoryConfig struct {
+	// SessionTTL 会话空闲多久后被后台回收
+	SessionTTL time.Duration `yaml:"session_ttl"`
+	// CleanupInterval 后台清理会话的周期
+	CleanupInterval time.Duration `yaml:"cleanup_interval"`
 }
 
 // KnowledgeChunkConfig 知识库文档切分参数，对应配置文件中的 knowledge_chunk 段。
@@ -163,6 +174,10 @@ func defaultConfig() *Config {
 		KnowledgeChunk: KnowledgeChunkConfig{
 			ChunkSize:   1000,
 			OverlapSize: 200,
+		},
+		Memory: MemoryConfig{
+			SessionTTL:      mem.DefaultSessionTTL,
+			CleanupInterval: mem.DefaultCleanupInterval,
 		},
 		Prometheus: PrometheusConfig{
 			BaseURL: "http://127.0.0.1:9090",
@@ -283,6 +298,12 @@ func fillDefaults(c *Config) {
 	}
 	if c.KnowledgeChunk.OverlapSize < 0 {
 		c.KnowledgeChunk.OverlapSize = def.KnowledgeChunk.OverlapSize
+	}
+	if c.Memory.SessionTTL <= 0 {
+		c.Memory.SessionTTL = def.Memory.SessionTTL
+	}
+	if c.Memory.CleanupInterval <= 0 {
+		c.Memory.CleanupInterval = def.Memory.CleanupInterval
 	}
 }
 
