@@ -211,6 +211,11 @@ func TestServerStreamEndToEnd(t *testing.T) {
 		t.Fatalf("广播帧 = %v", notice)
 	}
 
+	// 观测计数：建连 1 次、成功投递 2 条（单播 + 广播）、无丢弃
+	if got := srv.Stats(); got.Connected != 1 || got.Sent != 2 || got.Dropped != 0 {
+		t.Fatalf("Stats = %+v, want Connected=1 Sent=2 Dropped=0", got)
+	}
+
 	// 同一 client_id 重复连接应被拒绝，且不影响已有连接
 	dupConn, dupResp, _ := dialSSE(t, addr, "e2e-1")
 	_ = dupConn.Close()
@@ -224,6 +229,11 @@ func TestServerStreamEndToEnd(t *testing.T) {
 	// 客户端断开后应自动注销（依赖 request context 取消）
 	_ = conn.Close()
 	waitForClientCount(t, srv, 0, 3*time.Second)
+
+	// 断开后计数 +1
+	if got := srv.Stats().Disconnected; got != 1 {
+		t.Fatalf("Disconnected = %d, want 1", got)
+	}
 
 	// 注销之后的投递应返回「客户端不存在」
 	if err := srv.Send("e2e-1", Message{Data: "x"}); !errors.Is(err, ErrClientNotFound) {
@@ -287,4 +297,36 @@ func TestServerClientID(t *testing.T) {
 
 	_ = conn.Close()
 	waitForClientCount(t, srv, 0, 3*time.Second)
+}
+
+func TestServerMessageCloseEndsStream(t *testing.T) {
+	srv := New()
+	addr := startSSEServer(t, srv)
+
+	conn, resp, br := dialSSE(t, addr, "close-1")
+	defer func() {
+		_ = conn.Close()
+	}()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("握手状态码 = %d, want 200", resp.StatusCode)
+	}
+
+	// 握手的两帧：retry 与 connected
+	readFrame(t, conn, br)
+	readFrame(t, conn, br)
+
+	// 下发 Close 标记的末帧：应写到该帧后再结束流。
+	if err := srv.Send("close-1", Message{Event: "done", Data: "流完毕", Close: true}); err != nil {
+		t.Fatalf("Send 失败: %v", err)
+	}
+	last := readFrame(t, conn, br)
+	if last["event"] != "done" || last["data"] != "流完毕" {
+		t.Fatalf("末帧 = %v, want done/流完毕", last)
+	}
+
+	// Run 退出后客户端应被注销（handler 随之返回，HTTP 响应体结束）。
+	waitForClientCount(t, srv, 0, 3*time.Second)
+	if err := srv.Send("close-1", Message{Data: "x"}); !errors.Is(err, ErrClientNotFound) {
+		t.Fatalf("Send(已收流客户端) = %v, want ErrClientNotFound", err)
+	}
 }

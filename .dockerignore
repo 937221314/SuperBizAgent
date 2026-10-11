@@ -1,0 +1,35 @@
+# 构建上下文裁剪：Dockerfile 用 `COPY . .` 拷源码，这里挡掉不该进镜像的内容。
+# 注意 docs/ 必须保留（镜像内作为知识库目录），只排除其中的本地文档。
+
+# 版本控制与本地开发文档
+.git
+.gitignore
+.github
+dev-docs
+
+# 机密：.env 与真实的 config.yaml 均为明文密钥，只保留 config.example.yaml
+.env
+.env.*
+*.local
+manifest/config/config.yaml
+
+# 构建产物
+bin/
+dist/
+build/
+SuperBizAgent
+SuperBizAgent.exe
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# 日志与 OS 文件
+*.log
+logs/
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/

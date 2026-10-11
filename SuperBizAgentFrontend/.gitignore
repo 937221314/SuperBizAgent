@@ -1,0 +1,36 @@
+# 前端工程忽略规则（SuperBizAgentFrontend 子目录专用）
+# 说明：根目录 .gitignore 中的 /dist/ 为根相对路径，不覆盖本子目录，故此处单独声明。
+
+# 依赖目录
+node_modules/
+.pnpm-store/
+
+# 构建产物（Vite / tsc）
+dist/
+build/
+.vite/
+*.tsbuildinfo
+
+# 日志
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 测试覆盖率
+coverage/
+
+# 环境变量（仅本地覆盖）
+.env
+.env.*
+*.local
+
+# 编辑器 / 操作系统
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

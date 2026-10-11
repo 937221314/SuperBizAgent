@@ -7,11 +7,11 @@
 # 说明：真实的 manifest/config/config.yaml 已在 .gitignore 中忽略，不会纳入版本控制，
 #       以免把密码等敏感信息提交到仓库。
 #
-# 以下环境变量可覆盖对应配置项（优先级：环境变量 > 配置文件 > 代码默认值）：
-#   MILVUS_ADDRESS、MILVUS_USERNAME、MILVUS_PASSWORD、MILVUS_DB_NAME、MILVUS_COLLECTION_NAME
-#   TEXT_EMBEDDING_API_KEY、TEXT_EMBEDDING_BASE_URL、TEXT_EMBEDDING_MODEL
-#   MYSQL_DANGEROUS_STATEMENT_MODE
-# 另外可通过 CONFIG_PATH 指定配置文件的绝对路径。
+# 所有配置项均可由环境变量覆盖（优先级：环境变量 > 配置文件 > 代码默认值）：
+#   MILVUS_*、TEXT_EMBEDDING_*、MCP_URL、MYSQL_DANGEROUS_STATEMENT_MODE、PROMETHEUS_BASE_URL、
+#   KNOWLEDGE_CHUNK_*、MEMORY_*、FILE_DIR
+# 完整清单见 dev-docs/configuration.md；非法类型的值会使加载失败。
+# 另外：CONFIG_PATH 指定配置文件路径，CONFIG_RELOAD_INTERVAL 开启定时热更新。
 
 # server
 server:
@@ -59,9 +59,24 @@ milvus:
   collection_name: "biz"
   # 向量维度，必须与所用 Embedding 模型的输出维度一致
   vector_dim: 1024
+  # 向量索引参数（当前仅支持 HNSW，集合首次写入时由 eino milvus2 indexer 创建）
+  index:
+    # 每个节点的最大连接数，取值 4-64
+    m: 16
+    # 建索引时的搜索宽度，取值 8-512
+    ef_construction: 200
+  # 集合已存在但 schema 与代码期望不一致时的行为：
+  #   false 直接报错（默认，避免静默沿用错误结构）
+  #   true  删除并重建集合（会丢失集合内全部数据）
+  recreate_on_schema_mismatch: false
 
 # mcp
 mcp_url: "http://localhost:3000/sse"
+
+# Prometheus 告警工具（query_prometheus_alerts）
+prometheus:
+  # Prometheus 服务地址，使用前自行启动 Prometheus 容器
+  base_url: "http://127.0.0.1:9090"
 
 # MySQL 工具（mysql_query / mysql_exec）
 mysql:
@@ -71,3 +86,33 @@ mysql:
   # interrupt 需要编排层支持 checkpoint 与恢复（ToolsNode + CheckPointStore + 恢复入口），
   # 三者未就绪时挂起会变成无人处理的打断信号，因此默认 deny。
   dangerous_statement_mode: "deny"
+
+# file_dir
+# 知识库文档存放目录，上传的知识库文件保存在此，也是索引时的读取目录
+file_dir: "./docs"
+
+# knowledge_chunk
+# 知识库文档切分参数（transformer）。Markdown 按标题切分，其余格式按此参数递归切分。
+knowledge_chunk:
+  # 每个分片的最大字符数（按 rune 计，中文按字符）
+  chunk_size: 1000
+  # 相邻分片的重叠字符数，需大于等于 0 且小于 chunk_size
+  overlap_size: 200
+
+# memory
+# 会话记忆（内存实现）的回收策略
+memory:
+  # 会话空闲多久后被后台回收，支持 Go 时长格式（如 30m、1h）
+  session_ttl: 30m
+  # 后台清理周期
+  cleanup_interval: 5m
+  # 会话记忆窗口大小（消息条数），约等于保留的对话轮数 × 2
+  max_window_size: 8
+
+# sse
+# SSE 推送策略
+sse:
+  # 慢客户端（消息缓冲区已满）处置：
+  #   drop       丢弃消息，不阻塞业务发送方（默认）
+  #   disconnect 断开该客户端连接，释放缓冲区与连接资源
+  slow_client_policy: "drop"

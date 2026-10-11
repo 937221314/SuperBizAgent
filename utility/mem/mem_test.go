@@ -1,9 +1,11 @@
 package mem
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/cloudwego/eino/schema"
 )
@@ -179,5 +181,117 @@ func TestConcurrentAccess(t *testing.T) {
 
 	if m.Len() > m.MaxWindowSize() {
 		t.Fatalf("并发写入后窗口溢出: len=%d", m.Len())
+	}
+}
+
+// TestEvictIdle 验证按空闲时间回收会话，不影响活跃会话。
+func TestEvictIdle(t *testing.T) {
+	const (
+		oldID   = "evict-old"
+		freshID = "evict-fresh"
+	)
+	oldMem := GetSimpleMemory(oldID)
+	freshMem := GetSimpleMemory(freshID)
+	defer DeleteSimpleMemory(oldID)
+	defer DeleteSimpleMemory(freshID)
+
+	// 手动把其中一个的最近使用时间提前，模拟长时间空闲。
+	oldMem.lastActive.Store(time.Now().Add(-time.Hour).UnixNano())
+	freshMem.touch()
+
+	evictIdle(30*time.Minute, time.Now())
+
+	mu.RLock()
+	_, oldExists := simpleMemoryMap[oldID]
+	_, freshExists := simpleMemoryMap[freshID]
+	mu.RUnlock()
+
+	if oldExists {
+		t.Error("空闲超时的会话应被回收")
+	}
+	if !freshExists {
+		t.Error("活跃会话不应被回收")
+	}
+}
+
+// TestEvictIdleDisabled 验证 ttl<=0 时不回收任何会话。
+func TestEvictIdleDisabled(t *testing.T) {
+	const id = "evict-ttl-zero"
+	m := GetSimpleMemory(id)
+	defer DeleteSimpleMemory(id)
+	m.lastActive.Store(time.Now().Add(-time.Hour).UnixNano())
+
+	if n := evictIdle(0, time.Now()); n != 0 {
+		t.Fatalf("ttl<=0 时不应回收，实际回收 %d 个", n)
+	}
+	if _, ok := simpleMemoryMap[id]; !ok {
+		t.Error("ttl<=0 时不应回收任何会话")
+	}
+}
+
+// TestStartSessionGC 验证后台 goroutine 会按周期回收空闲会话。
+func TestStartSessionGC(t *testing.T) {
+	const id = "gc-session"
+	m := GetSimpleMemory(id)
+	defer DeleteSimpleMemory(id)
+	m.lastActive.Store(time.Now().Add(-time.Hour).UnixNano())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	StartSessionGC(ctx, 10*time.Millisecond, 10*time.Millisecond)
+
+	exists := func() bool {
+		mu.RLock()
+		defer mu.RUnlock()
+		_, ok := simpleMemoryMap[id]
+		return ok
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if !exists() {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("后台清理未在预期时间内回收空闲会话")
+}
+
+// TestSessionCount 验证会话计数随创建/删除变化。
+func TestSessionCount(t *testing.T) {
+	before := SessionCount()
+
+	const id = "count-session"
+	GetSimpleMemory(id)
+	if got := SessionCount(); got != before+1 {
+		t.Fatalf("SessionCount = %d，期望 %d", got, before+1)
+	}
+	DeleteSimpleMemory(id)
+}
+
+// TestDefaultWindowSizeConfigurable 验证默认窗口大小可配置，且影响新建会话。
+func TestDefaultWindowSizeConfigurable(t *testing.T) {
+	orig := DefaultWindowSize()
+	t.Cleanup(func() { SetDefaultWindowSize(orig) })
+
+	if orig != DefaultMaxWindowSize {
+		t.Fatalf("初始默认窗口 = %d，期望 %d", orig, DefaultMaxWindowSize)
+	}
+
+	SetDefaultWindowSize(4)
+	if got := DefaultWindowSize(); got != 4 {
+		t.Fatalf("DefaultWindowSize = %d，期望 4", got)
+	}
+
+	const id = "window-size-session"
+	m := GetSimpleMemory(id)
+	defer DeleteSimpleMemory(id)
+	if m.MaxWindowSize() != 4 {
+		t.Fatalf("新建会话窗口 = %d，期望 4", m.MaxWindowSize())
+	}
+
+	SetDefaultWindowSize(0) // 非正值应忽略
+	if got := DefaultWindowSize(); got != 4 {
+		t.Fatalf("SetDefaultWindowSize(0) 后 = %d，期望保持 4", got)
 	}
 }
