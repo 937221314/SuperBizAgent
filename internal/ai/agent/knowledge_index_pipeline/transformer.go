@@ -81,7 +81,7 @@ func (s *multiFormatSplitter) Transform(ctx context.Context, docs []*schema.Docu
 	if len(mdDocs) > 0 {
 		chunks, err := s.markdown.Transform(ctx, mdDocs, opts...)
 		if err != nil {
-			return nil, fmt.Errorf("Markdown 切分失败: %w", err)
+			return nil, fmt.Errorf("切分 Markdown 文档失败: %w", err)
 		}
 		result = append(result, chunks...)
 	}
