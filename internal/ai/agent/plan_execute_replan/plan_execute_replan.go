@@ -11,8 +11,8 @@ import (
 
 // BuildPlanAgent 构建规划执行智能体
 func BuildPlanAgent(ctx context.Context) (adk.Agent, error) {
-	// 创建模型实例
-	cm, err := models.OpenAIForQwenFlash(ctx)
+	// 创建模型实例：智能体强制工具选择，必须使用关闭思考的模型变体。
+	cm, err := models.OpenAIForQwenAgent(ctx)
 	if err != nil {
 		return nil, err
 	}
