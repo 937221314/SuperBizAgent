@@ -95,7 +95,13 @@ make fmt                # gofmt -w .
 make frontend-install   # 前端安装依赖（首次）
 make frontend-typecheck # 前端类型检查
 make frontend-build     # 前端构建（产出 SuperBizAgentFrontend/dist/）
+./dev.sh                # 开发启动脚本：后端（go run）+ 前端（npm run dev）+ 日志监听
 ```
+
+- `./dev.sh` 支持 `backend` / `frontend` 子命令只启动单端；退出（Ctrl+C）会一并回收
+  本轮启动的进程与端口，端口可用 `BACKEND_PORT` / `FRONTEND_PORT` 覆盖。
+- 该脚本默认导出 `CONFIG_RELOAD_INTERVAL=30s`（改配置无需重启），
+  用 `CONFIG_RELOAD_INTERVAL= ./dev.sh` 可关闭。
 
 ## 目录结构
 
@@ -145,6 +151,7 @@ SuperBizAgent/
 │   └── middleware/     # HTTP 中间件
 ├── SuperBizAgentFrontend/  # 前端对话界面（Vite + TypeScript）
 ├── main.go             # 程序入口
+├── dev.sh              # 本地开发启动脚本（后端 + 前端 + 日志监听）
 ├── go.mod              # Go 模块定义
 ├── Makefile            # 常用构建与检查命令
 ├── .golangci.yml       # golangci-lint 配置
