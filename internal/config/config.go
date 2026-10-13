@@ -1,13 +1,15 @@
 // Package config 负责加载并缓存应用配置。
 //
 // 优先级：环境变量 > 配置文件 > 代码默认值。默认读取 manifest/config/config.yaml，
-// 可用 CONFIG_PATH 指定其它路径。配置项与环境变量清单详见 dev-docs/configuration.md。
+// 可用 CONFIG_PATH 指定其它路径；配置文件由 GoFrame 的 gcfg 读取，文件变更后经
+// gfsnotify 触发热更新。配置项与环境变量清单详见 dev-docs/configuration.md。
 package config
 
 import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -17,7 +19,8 @@ import (
 	"SuperBizAgent/utility/mem"
 
 	"github.com/gogf/gf/v2/frame/g"
-	"gopkg.in/yaml.v3"
+	"github.com/gogf/gf/v2/os/gcfg"
+	"github.com/gogf/gf/v2/util/gconv"
 )
 
 // DefaultConfigPath 默认配置文件路径（相对于程序运行目录）。
@@ -88,46 +91,46 @@ const (
 
 // Config 应用总配置。
 type Config struct {
-	Milvus         MilvusConfig         `yaml:"milvus"`
-	TextEmbedding  TextEmbeddingConfig  `yaml:"text-embedding"`
-	Mysql          MysqlConfig          `yaml:"mysql"`
-	Prometheus     PrometheusConfig     `yaml:"prometheus"`
-	KnowledgeChunk KnowledgeChunkConfig `yaml:"knowledge_chunk"`
-	Memory         MemoryConfig         `yaml:"memory"`
-	SSE            SSEConfig            `yaml:"sse"`
-	McpURL         string               `yaml:"mcp_url"`
-	FileDir        string               `yaml:"file_dir"`
+	Milvus         MilvusConfig         `json:"milvus"`
+	TextEmbedding  TextEmbeddingConfig  `json:"text-embedding"`
+	Mysql          MysqlConfig          `json:"mysql"`
+	Prometheus     PrometheusConfig     `json:"prometheus"`
+	KnowledgeChunk KnowledgeChunkConfig `json:"knowledge_chunk"`
+	Memory         MemoryConfig         `json:"memory"`
+	SSE            SSEConfig            `json:"sse"`
+	McpURL         string               `json:"mcp_url"`
+	FileDir        string               `json:"file_dir"`
 }
 
 // MemoryConfig 会话记忆配置，对应配置文件中的 memory 段。
 type MemoryConfig struct {
 	// SessionTTL 会话空闲多久后被后台回收
-	SessionTTL time.Duration `yaml:"session_ttl"`
+	SessionTTL time.Duration `json:"session_ttl"`
 	// CleanupInterval 后台清理会话的周期
-	CleanupInterval time.Duration `yaml:"cleanup_interval"`
+	CleanupInterval time.Duration `json:"cleanup_interval"`
 	// MaxWindowSize 会话记忆窗口大小（消息条数），约等于对话轮数 × 2
-	MaxWindowSize int `yaml:"max_window_size"`
+	MaxWindowSize int `json:"max_window_size"`
 }
 
 // KnowledgeChunkConfig 知识库文档切分参数，对应配置文件中的 knowledge_chunk 段。
 type KnowledgeChunkConfig struct {
 	// ChunkSize 每个分片的最大字符数（按 rune 计），必须大于 0
-	ChunkSize int `yaml:"chunk_size"`
+	ChunkSize int `json:"chunk_size"`
 	// OverlapSize 相邻分片的重叠字符数，需大于等于 0 且小于 ChunkSize
-	OverlapSize int `yaml:"overlap_size"`
+	OverlapSize int `json:"overlap_size"`
 }
 
 // PrometheusConfig Prometheus 告警工具配置，对应配置文件中的 prometheus 段。
 type PrometheusConfig struct {
 	// BaseURL Prometheus 服务地址，例如 http://127.0.0.1:9090
-	BaseURL string `yaml:"base_url"`
+	BaseURL string `json:"base_url"`
 }
 
 // SSEConfig SSE 推送相关配置，对应配置文件中的 sse 段。
 type SSEConfig struct {
 	// SlowClientPolicy 慢客户端（缓冲区满）处置策略：
 	// drop 丢弃消息（默认）；disconnect 断开该客户端连接。
-	SlowClientPolicy string `yaml:"slow_client_policy"`
+	SlowClientPolicy string `json:"slow_client_policy"`
 }
 
 // MysqlConfig MySQL 工具配置，对应配置文件中的 mysql 段。
@@ -135,49 +138,49 @@ type MysqlConfig struct {
 	// DangerousStatementMode 决定 mysql_exec 遇到 DROP/TRUNCATE 时的行为：
 	// deny 直接拒绝，interrupt 挂起等用户确认。取值需与 internal/ai/tools/mysql 的
 	// ModeDangerousDeny / ModeDangerousInterrupt 保持一致。
-	DangerousStatementMode string `yaml:"dangerous_statement_mode"`
+	DangerousStatementMode string `json:"dangerous_statement_mode"`
 }
 
 // TextEmbeddingConfig 文本向量模型配置，对应配置文件中的 text-embedding 段。
 type TextEmbeddingConfig struct {
 	// APIKey 模型服务的 API Key，建议通过环境变量注入
-	APIKey string `yaml:"api_key"`
+	APIKey string `json:"api_key"`
 	// BaseURL 模型服务地址
-	BaseURL string `yaml:"base_url"`
+	BaseURL string `json:"base_url"`
 	// Model 模型名称
-	Model string `yaml:"model"`
+	Model string `json:"model"`
 }
 
 // MilvusConfig Milvus 客户端配置。
 type MilvusConfig struct {
 	// Address 服务地址，格式 host:port
-	Address string `yaml:"address"`
+	Address string `json:"address"`
 	// Username 认证用户名
-	Username string `yaml:"username"`
+	Username string `json:"username"`
 	// Password 认证密码，建议通过环境变量注入
-	Password string `yaml:"password"`
+	Password string `json:"password"`
 	// DefaultDBName 初始化数据库时使用的默认库
-	DefaultDBName string `yaml:"default_db_name"`
+	DefaultDBName string `json:"default_db_name"`
 	// DBName 业务数据库名称
-	DBName string `yaml:"db_name"`
+	DBName string `json:"db_name"`
 	// CollectionName 业务集合名称
-	CollectionName string `yaml:"collection_name"`
+	CollectionName string `json:"collection_name"`
 	// VectorDim 向量维度
-	VectorDim int64 `yaml:"vector_dim"`
+	VectorDim int64 `json:"vector_dim"`
 	// Index 向量索引参数，对应配置文件中的 milvus.index 段
-	Index MilvusIndexConfig `yaml:"index"`
+	Index MilvusIndexConfig `json:"index"`
 	// RecreateOnSchemaMismatch 集合已存在但 schema 与代码期望不一致时，是否删除重建。
 	// 默认 false（直接报错）；开启会丢失集合内全部数据。
-	RecreateOnSchemaMismatch bool `yaml:"recreate_on_schema_mismatch"`
+	RecreateOnSchemaMismatch bool `json:"recreate_on_schema_mismatch"`
 }
 
 // MilvusIndexConfig 向量索引参数，对应配置文件中的 milvus.index 段。
 // 当前仅支持 HNSW（由 eino milvus2 indexer 创建）。
 type MilvusIndexConfig struct {
 	// M HNSW 每个节点的最大连接数，取值范围 4-64
-	M int `yaml:"m"`
+	M int `json:"m"`
 	// EfConstruction HNSW 建索引时的搜索宽度，取值范围 8-512
-	EfConstruction int `yaml:"ef_construction"`
+	EfConstruction int `json:"ef_construction"`
 }
 
 var (
@@ -230,31 +233,57 @@ func defaultConfig() *Config {
 	}
 }
 
-// Path 返回当前生效的配置文件路径。
+// EnvConfigPath 是指定配置文件路径的环境变量名。
+const EnvConfigPath = "CONFIG_PATH"
+
+// Path 返回当前生效的配置文件路径：CONFIG_PATH 优先，否则取 DefaultConfigPath。
 func Path() string {
-	if p := os.Getenv("CONFIG_PATH"); p != "" {
+	if p := os.Getenv(EnvConfigPath); p != "" {
 		return p
 	}
 	return DefaultConfigPath
 }
 
-// Load 从指定路径加载配置；path 为空时使用 Path()。
+// loader 返回本次加载使用的 gcfg 实例。
+//
+// 默认复用 gf 全局实例，与 logger、server、dashscope 等读同一份配置文件；
+// 设置 CONFIG_PATH 时改用独立实例，避免影响 gf 自身的配置读取。
+func loader() (*gcfg.Config, error) {
+	if os.Getenv(EnvConfigPath) == "" {
+		return g.Cfg(), nil
+	}
+	path := Path()
+	adapter, err := gcfg.NewAdapterFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("初始化配置适配器 %s 失败: %w", path, err)
+	}
+	return gcfg.NewWithAdapter(adapter), nil
+}
+
+// cfgPath 返回 cfgs 实际读取的配置文件路径，仅用于错误提示。
+func cfgPath(cfgs *gcfg.Config) string {
+	if adapter, ok := cfgs.GetAdapter().(*gcfg.AdapterFile); ok {
+		if p, err := adapter.GetFilePath(); err == nil && p != "" {
+			return p
+		}
+	}
+	return Path()
+}
+
+// bind 读取配置文件并转换为 Config，顺序为：
+// 代码默认值 → 配置文件 → 环境变量 → 补默认值 → 校验。
 // 配置文件不存在时不报错，返回默认配置。
-func Load(path string) (*Config, error) {
-	if path == "" {
-		path = Path()
+func bind(ctx context.Context, cfgs *gcfg.Config) (*Config, error) {
+	data, err := cfgs.Data(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("读取配置文件 %s 失败: %w", cfgPath(cfgs), err)
 	}
 
 	c := defaultConfig()
-
-	content, err := os.ReadFile(path)
-	switch {
-	case err == nil:
-		if err := yaml.Unmarshal(content, c); err != nil {
-			return nil, fmt.Errorf("解析配置文件 %s 失败: %w", path, err)
+	if len(data) > 0 {
+		if err := gconv.Struct(data, c); err != nil {
+			return nil, fmt.Errorf("解析配置文件 %s 失败: %w", cfgPath(cfgs), err)
 		}
-	case !os.IsNotExist(err):
-		return nil, fmt.Errorf("读取配置文件 %s 失败: %w", path, err)
 	}
 
 	if err := applyEnv(c); err != nil {
@@ -268,12 +297,22 @@ func Load(path string) (*Config, error) {
 	return c, nil
 }
 
-// Get 返回全局配置，仅在首次调用时加载（并发安全）。
-// 配置在进程内缓存；运行期热更新见 Reload 与 StartAutoReload。
+// Get 返回全局配置，仅在首次调用时加载（并发安全）；
+// 同时注册配置文件监听，文件变更后自动热更新（见 Watch）。
 func Get() (*Config, error) {
 	initOnce.Do(func() {
-		c, err := Load("")
+		cfgs, err := loader()
 		if err != nil {
+			initErr = err
+			return
+		}
+		c, err := bind(context.Background(), cfgs)
+		if err != nil {
+			initErr = err
+			return
+		}
+		// 先注册监听再写入缓存，避免极端情况下丢掉首个变更事件。
+		if err := watch(cfgs, cfgPtr.Load, cfgPtr.Store); err != nil {
 			initErr = err
 			return
 		}
@@ -285,69 +324,67 @@ func Get() (*Config, error) {
 	return cfgPtr.Load(), nil
 }
 
-// Reload 重新读取配置文件并原子替换缓存，供热更新使用。
-// 失败时保留原有配置并返回错误，调用方据此告警即可，无需回退。
-func Reload() (*Config, error) {
-	c, err := Load("")
-	if err != nil {
-		return nil, err
+// watcherName 是本包注册到 gcfg 文件适配器上的监听器名。
+const watcherName = "SuperBizAgent"
+
+var (
+	watchMu    sync.RWMutex
+	watchFuncs []func(*Config)
+)
+
+// Watch 注册配置热更新回调，可注册多个；回调触发时新配置已写入缓存，Get 可见。
+// 回调由 gcfg 在独立 goroutine 中执行，与其他重载互斥、不会重入，
+// 但仍可能与其他请求并发，需自行保证并发安全，且应尽快返回。
+func Watch(fn func(*Config)) {
+	if fn == nil {
+		return
 	}
-	cfgPtr.Store(c)
-	return c, nil
+	watchMu.Lock()
+	watchFuncs = append(watchFuncs, fn)
+	watchMu.Unlock()
 }
 
-// EnvConfigReloadInterval 是定时热更新周期的环境变量名（Go 时长格式，如 30s）。
-const EnvConfigReloadInterval = "CONFIG_RELOAD_INTERVAL"
+// watch 在 cfgs 的文件适配器上注册监听：文件变更后重新加载，与 last() 取到的当前
+// 配置不同才存入 store 并通知已注册回调，重载失败只告警并沿用旧配置。
+//
+// 适配器对一次保存可能投递多个事件，因此重载全程串行：内容未变的事件会被去重，
+// 同一个失败原因也只告警一次，避免日志刷屏。
+func watch(cfgs *gcfg.Config, last func() *Config, store func(*Config)) error {
+	adapter, ok := cfgs.GetAdapter().(*gcfg.AdapterFile)
+	if !ok {
+		return fmt.Errorf("配置适配器 %T 不支持文件监听，无法热更新", cfgs.GetAdapter())
+	}
+	var (
+		mu      sync.Mutex
+		lastErr string
+	)
+	adapter.AddWatcher(watcherName, func(ctx context.Context) {
+		mu.Lock()
+		defer mu.Unlock()
 
-// ReloadInterval 读取并解析定时热更新周期；未设置或非正时长时返回 0（关闭）。
-func ReloadInterval() (time.Duration, error) {
-	v := os.Getenv(EnvConfigReloadInterval)
-	if v == "" {
-		return 0, nil
-	}
-	d, err := time.ParseDuration(v)
-	if err != nil {
-		return 0, fmt.Errorf("环境变量 %s 不是合法时长: %w", EnvConfigReloadInterval, err)
-	}
-	if d < 0 {
-		return 0, nil
-	}
-	return d, nil
-}
-
-// StartAutoReload 按 interval 周期调用 Reload 热更新配置，ctx 取消时退出；
-// interval <= 0 时不启动。onReload 在每次成功重载后调用（可为 nil），
-// 供调用方重新应用启动期一次性设置（如会话窗口大小）；
-// 固定的后台周期（如会话 GC 间隔）无法在运行中变更，需重启。
-// 返回的 channel 在后台 goroutine 退出后关闭，供测试或优雅停机等待。
-func StartAutoReload(ctx context.Context, interval time.Duration, onReload func(*Config)) <-chan struct{} {
-	done := make(chan struct{})
-	if interval <= 0 {
-		close(done)
-		return done
-	}
-	go func() {
-		defer close(done)
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				c, err := Reload()
-				if err != nil {
-					g.Log().Warningf(ctx, "[config] 热更新失败，继续使用旧配置: %v", err)
-					continue
-				}
-				g.Log().Infof(ctx, "[config] 配置已热更新")
-				if onReload != nil {
-					onReload(c)
-				}
+		c, err := bind(ctx, cfgs)
+		if err != nil {
+			if msg := err.Error(); msg != lastErr {
+				g.Log().Warningf(ctx, "[config] 热更新失败，继续使用旧配置: %v", err)
+				lastErr = msg
 			}
+			return
 		}
-	}()
-	return done
+		lastErr = ""
+		if cur := last(); cur != nil && reflect.DeepEqual(cur, c) {
+			return
+		}
+		store(c)
+		g.Log().Infof(ctx, "[config] 配置已热更新")
+		watchMu.RLock()
+		funcs := make([]func(*Config), len(watchFuncs))
+		copy(funcs, watchFuncs)
+		watchMu.RUnlock()
+		for _, fn := range funcs {
+			fn(c)
+		}
+	})
+	return nil
 }
 
 // applyEnv 使用环境变量覆盖配置项，空值忽略；非空但非法的值返回错误。
