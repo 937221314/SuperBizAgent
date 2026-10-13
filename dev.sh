@@ -7,7 +7,7 @@
 #   ./dev.sh frontend   # 仅前端
 #   ./dev.sh help       # 帮助
 #
-# 端口、日志路径可用环境变量覆盖：BACKEND_PORT / FRONTEND_PORT / CONFIG_RELOAD_INTERVAL。
+# 端口、日志路径可用环境变量覆盖：BACKEND_PORT / FRONTEND_PORT。
 # Ctrl+C 退出时会一并回收本轮启动的进程及其监听端口。
 
 set -uo pipefail
@@ -23,9 +23,8 @@ LOG_FILE="${LOG_DIR}/app.log"
 BACKEND_PORT="${BACKEND_PORT:-6872}"
 FRONTEND_PORT="${FRONTEND_PORT:-5173}"
 
-# 开发期默认开启配置热更新（改 manifest/config/config.yaml 后无需重启）；
-# 用 `CONFIG_RELOAD_INTERVAL= ./dev.sh` 显式置空可关闭。
-export CONFIG_RELOAD_INTERVAL="${CONFIG_RELOAD_INTERVAL-30s}"
+# 配置热更新由 gcfg 的文件监听触发：改 manifest/config/config.yaml 后无需重启；
+# 环境变量变更仍需重启（热更新只重读配置文件）。
 
 # 后端必须从仓库根目录启动：logger.path（./logs）与配置默认值都是相对进程工作目录的，
 # 从别处启动会把日志和知识库目录落到错误位置。
@@ -70,7 +69,6 @@ usage() {
 环境变量:
   BACKEND_PORT            后端端口，默认 6872
   FRONTEND_PORT           前端端口，默认 5173
-  CONFIG_RELOAD_INTERVAL  配置热更新周期，默认 30s；置空关闭
 EOF
 }
 

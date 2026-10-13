@@ -11,7 +11,7 @@
 #   MILVUS_*、TEXT_EMBEDDING_*、MCP_URL、MYSQL_DANGEROUS_STATEMENT_MODE、PROMETHEUS_BASE_URL、
 #   KNOWLEDGE_CHUNK_*、MEMORY_*、FILE_DIR
 # 完整清单见 dev-docs/configuration.md；非法类型的值会使加载失败。
-# 另外：CONFIG_PATH 指定配置文件路径，CONFIG_RELOAD_INTERVAL 开启定时热更新。
+# 另外：CONFIG_PATH 指定配置文件路径；配置文件变更由 gcfg 的文件监听触发热更新。
 
 # server
 server:
@@ -53,7 +53,7 @@ dashscope_chat_flash:
   model: "qwen3.6-flash"
 
 # embedder
-# 由 internal/config 加载（不再使用 gf 的 g.Cfg）
+# 由 internal/config 读取并绑定到应用配置
 text-embedding:
   api_key: "DASHSCOPE_API_KEY"
   base_url: "https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"

@@ -33,7 +33,7 @@ SuperBizAgent 是一个使用 Go 语言开发的业务代理服务。当前已�
 | 关系库 | MySQL（GORM） |
 | 外部集成 | Prometheus 告警查询、MCP（`mark3labs/mcp-go`） |
 | 实时推送 | SSE（`internal/logic/sse`） |
-| 配置加载 | YAML + 环境变量（`yaml.v3`、`joho/godotenv`） |
+| 配置加载 | GoFrame `gcfg`（YAML）+ 环境变量（`joho/godotenv`），变更经 `gfsnotify` 热更新 |
 
 ### 前端
 
@@ -100,8 +100,7 @@ make frontend-build     # 前端构建（产出 SuperBizAgentFrontend/dist/）
 
 - `./dev.sh` 支持 `backend` / `frontend` 子命令只启动单端；退出（Ctrl+C）会一并回收
   本轮启动的进程与端口，端口可用 `BACKEND_PORT` / `FRONTEND_PORT` 覆盖。
-- 该脚本默认导出 `CONFIG_RELOAD_INTERVAL=30s`（改配置无需重启），
-  用 `CONFIG_RELOAD_INTERVAL= ./dev.sh` 可关闭。
+- 配置文件变更自动热更新（GoFrame `gcfg` 的文件监听），无需重启，也无需额外环境变量。
 - `make lint` 需 **golangci-lint v2.14.0 及以上**（内置 `golang.org/x/tools` ≥ v0.50.0）。
   更低版本读不了 go1.27 的 export data（版本 5），会把所有包报成 typecheck 失败；
   本地安装：`go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0`。
@@ -167,8 +166,8 @@ SuperBizAgent/
 - 配置由 `internal/config` 加载，默认读取 `manifest/config/config.yaml`，可用 `CONFIG_PATH` 指定其它路径。
 - 优先级：**环境变量 > 配置文件 > 代码默认值**；配置文件不存在时使用内置默认值。
   **全部配置项均可由环境变量覆盖**（清单见 `dev-docs/configuration.md`），非法类型值会使加载失败。
-- 配置默认启动时加载并缓存，改配置需重启；设置环境变量 `CONFIG_RELOAD_INTERVAL`（如 `30s`）
-  可开启定时热更新（多数组件每次请求读取配置，重载后即生效）。
+- 配置默认启动时加载并缓存；**改配置文件会自动热更新**（GoFrame `gcfg` 的文件监听，
+  多数组件每次请求读取配置，重载后即生效），改环境变量仍需重启。
 - 示例见 `manifest/config/config.example.yaml`，环境变量与配置项清单详见 `dev-docs/configuration.md`。
 - Milvus 索引参数：`milvus.index.m` / `milvus.index.ef_construction`（HNSW，仅在集合首次创建时生效）。
 - Milvus schema 校验：集合已存在时比对字段与向量维度，不一致默认报错；

@@ -26,7 +26,8 @@ var query = `
 ## 处理方案执行N(第N个告警)
 ## 结论`
 
-// AIOps 处理 AI 运维请求，功能尚未实现。
+// AIOps 处理 AI 运维请求：用包级 query 提示词构建 plan-execute 智能体，
+// 遍历事件流并用最后一条消息生成运维分析报告。
 func (c *ControllerV1) AIOps(ctx context.Context, req *v1.AIOpsReq) (res *v1.AIOpsRes, err error) {
 	planExecuteAgent, err := plan_execute_replan.BuildPlanAgent(ctx)
 	if err != nil {
