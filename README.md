@@ -102,6 +102,9 @@ make frontend-build     # 前端构建（产出 SuperBizAgentFrontend/dist/）
   本轮启动的进程与端口，端口可用 `BACKEND_PORT` / `FRONTEND_PORT` 覆盖。
 - 该脚本默认导出 `CONFIG_RELOAD_INTERVAL=30s`（改配置无需重启），
   用 `CONFIG_RELOAD_INTERVAL= ./dev.sh` 可关闭。
+- `make lint` 需 **golangci-lint v2.14.0 及以上**（内置 `golang.org/x/tools` ≥ v0.50.0）。
+  更低版本读不了 go1.27 的 export data（版本 5），会把所有包报成 typecheck 失败；
+  本地安装：`go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0`。
 
 ## 目录结构
 
