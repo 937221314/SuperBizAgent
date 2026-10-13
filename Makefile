@@ -12,7 +12,8 @@ vet:
 test:
 	go test -race ./...
 
-# golangci-lint 静态检查（需 golangci-lint v2，且用 go1.27 构建）
+# golangci-lint 静态检查（需 v2.14.0 及以上：更低版本内置的 x/tools < v0.50.0 读不了
+# go1.27 的 export data V5，会报 typecheck 错误）
 lint:
 	golangci-lint run ./...
 
